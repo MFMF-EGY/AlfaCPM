@@ -340,7 +340,7 @@ class ProcessRequest:
             AvailableQuantity = Cursor.fetchone()
             Cursor.execute(f"SELECT Quantity FROM Transition_Items WHERE Document_ID={DocumentID} AND Product_ID={Order['ProductID']}")
             PreviousQuantity = Cursor.fetchone()
-            if PreviousQuantity != None and AvailableQuantity < Order["Quantity"] - Decimal(PreviousQuantity):
+            if PreviousQuantity != None and AvailableQuantity[0] < Order["Quantity"] - Decimal(PreviousQuantity[0]):
                 InsufficientQuantityProducts.append(Order["ProductID"])
         if InsufficientQuantityProducts:
             return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductsIDs":InsufficientQuantityProducts} if InsufficientQuantityProducts else ProcessRequest.EditTransitionDocumentHelper(ProjectDBConnector, Cursor, RequestList, Orders, DocumentID)

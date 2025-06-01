@@ -16,6 +16,8 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
   const [ FilteredSuggestions, setFilteredSuggestions ] = useState([]);
   const [ Lock, setLock ] = useState([false, false, true]);
 
+  const Prices = useRef([]);
+  const [ PricesSuggestions, setPricesSuggestions ] = useState([])
   const Item = useRef();
 
   const suggestProduct = async (NewItemsList) => {
@@ -37,7 +39,41 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       })
       .catch((error) => console.log(error))
   }
-
+  const suggestPrices = async (NewItemsList) => {
+    var RequestParams = {
+      RequestType: "SearchProducts",
+      ProjectID: ProjectID,
+      StoreID: StoreID,
+      Product_ID: NewItemsList[Index].ProductID
+    }
+    await axios.get(API_URL, {params: RequestParams})
+      .then((response) => {
+        if (!response.data.StatusCode){
+          Prices.current = [
+            response.data.Data[0].Purchase_Price,
+            response.data.Data[0].Wholesale_Price,
+            response.data.Data[0].Retail_Price
+          ];
+          let NewPricesSuggestions = [];
+          Prices.current.forEach((price, i) => {
+            if (price){
+              NewPricesSuggestions.push(
+                (i === 0 ? "سعر الشراء: " : (i === 1 ? "سعر بيع الجملة: " : "سعر بيع القطاعي: ")) + price
+              );
+            }
+          })
+          console.log(NewPricesSuggestions);
+          setPricesSuggestions(NewPricesSuggestions);
+        }else{
+          console.log(response.data);
+        }
+      })
+      .catch((error) => console.log(error))
+  }
+  useEffect(() => {
+    if (ItemsList[Index].ProductID)
+      suggestPrices(ItemsList);
+  },[])
 
   useEffect(() => {
     let NewItemsList = [...ItemsList];
@@ -114,7 +150,7 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
     <tr ref={Item}>
       <td>{Index+1}</td>
       <td>
-        <SuggestionsInput Value={ItemsList[Index].ProductName}
+        <SuggestionsInput Type="text" Value={ItemsList[Index].ProductName}
           Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
@@ -129,6 +165,8 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
               ProductName: event.target.value
             };
             ExistingQuantities[Index] = undefined;
+            Prices.current = [];
+            setPricesSuggestions([]);
             setItemsList(NewItemsList);
             suggestProduct(NewItemsList);
 
@@ -145,12 +183,11 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
-
           }}
         />
       </td>
       <td>
-        <SuggestionsInput Value={ItemsList[Index].Trademark}
+        <SuggestionsInput Type="text" Value={ItemsList[Index].Trademark}
           Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
@@ -165,6 +202,8 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
               Trademark: event.target.value
             };
             ExistingQuantities[Index] = undefined;
+            Prices.current = [];
+            setPricesSuggestions([]);
             setItemsList(NewItemsList);
             suggestProduct(NewItemsList);
 
@@ -181,12 +220,11 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
-
           }}
         />
       </td>
       <td>
-        <SuggestionsInput Value={ItemsList[Index].ManufactureCountry}
+        <SuggestionsInput Type="text" Value={ItemsList[Index].ManufactureCountry}
           Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
@@ -201,6 +239,8 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
               ManufactureCountry: event.target.value
             };
             ExistingQuantities[Index] = undefined;
+            Prices.current = [];
+            setPricesSuggestions([]);
             setItemsList(NewItemsList);
             suggestProduct(NewItemsList);
 
@@ -217,7 +257,6 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
-
           }}
         />
       </td>
@@ -286,9 +325,16 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
         />
       </td>
       <td>
-        <input type="number" value={ItemsList[Index].UnitPrice}
+        <SuggestionsInput Type="number" Value={ItemsList[Index].UnitPrice}
+          Suggestions={PricesSuggestions}
           onFocus={() => {
             setSelectedItemIndex(Index);
+            if (ItemsList[Index].ProductID)
+              suggestPrices(ItemsList);
+            else{
+              Prices.current = [];
+              setPricesSuggestions([]);
+            }
           }}
           onChange={(event) => {
             let Value = event.target.value > 0 ? event.target.value : "";
@@ -306,9 +352,25 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
               ...OtherValues,
             };
             setItemsList(NewItemsList);
-            //setItemChanged(!ItemChanged);
           }}
-          disabled={Lock[1] || (Index > 0 ? !ValidationChecker[Index - 1]: false)}
+          onSelect={(index) => {
+            let Value = Prices.current[index];
+            let OtherValues = Lock[0] ? {
+              Quantity: ItemsList[Index].Price / Value,
+              Price: ItemsList[Index].Price
+            } : {
+              Price: Value * ItemsList[Index].Quantity,
+              Quantity: ItemsList[Index].Quantity
+            }
+            let NewItemsList = [...ItemsList];
+            NewItemsList[Index] = {
+              ...NewItemsList[Index],
+              UnitPrice: Value,
+              ...OtherValues,
+            };
+            setItemsList(NewItemsList);
+          }}
+          Disabled={Lock[1] || (Index > 0 ? !ValidationChecker[Index - 1]: false)}
         />
         <button className="Field-lock" 
           style={
@@ -464,7 +526,7 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
     <tr ref={Item}>
       <td>{Index+1}</td>
       <td>
-        <SuggestionsInput Value={ItemsList[Index].ProductName}
+        <SuggestionsInput Type="text" Value={ItemsList[Index].ProductName}
           Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
@@ -498,7 +560,7 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
         />
       </td>
       <td>
-        <SuggestionsInput Value={ItemsList[Index].Trademark}
+        <SuggestionsInput Type="text" Value={ItemsList[Index].Trademark}
           Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
@@ -532,7 +594,7 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
         />
       </td>
       <td>
-        <SuggestionsInput Value={ItemsList[Index].ManufactureCountry}
+        <SuggestionsInput Type="text" Value={ItemsList[Index].ManufactureCountry}
           Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {

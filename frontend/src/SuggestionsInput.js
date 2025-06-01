@@ -1,35 +1,40 @@
 import { useState, useEffect, useRef } from "react";
 
-function SuggestionsInput({ Value, Suggestions, Disabled, onFocus, onChange, onSelect }) {
+function SuggestionsInput({ Type, Value, Suggestions, Disabled, onFocus, onChange, onSelect }) {
 
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const CellRef = useRef();
+  const ContainerRef = useRef();
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (!CellRef.current.contains(event.target)) {
+      if (!ContainerRef.current.contains(event.target)) {
         setShowSuggestions(false);
       }
     };
     
-    document.addEventListener("click", handleClickOutside);
-    return () => {
-      document.removeEventListener("click", handleClickOutside);
-    };
-  });
+    if (showSuggestions){
+      document.addEventListener("pointerdown", handleClickOutside);
+      return () => {
+        document.removeEventListener("pointerdown", handleClickOutside);
+      };
+    }
+  }, [showSuggestions]);
 
   return (
-    <div ref={CellRef}>
+    <div ref={ContainerRef} style={{ display: "inline-block" }}>
       <input
-        type="text"
+        type={Type}
         value={Value}
         disabled={Disabled}
-        onFocus={onFocus}
-        onChange={(event) => {
+        onFocus={()=>{
           setShowSuggestions(true);
+          onFocus();
+          console.log(Suggestions);
+        }}
+        onChange={(event) => {
           onChange(event);
         }}
         onBlur={(event) => {
-          if (event.relatedTarget && !CellRef.current.contains(event.relatedTarget)) {
+          if (event.relatedTarget && !ContainerRef.current.contains(event.relatedTarget)) {
             setShowSuggestions(false);
           }
         }}
