@@ -1,2 +1,2 @@
-# Elmakhzan
-المخزن هو تطبيق لأدارة المخازن
+# AlfaCPM
+This is open source commercial projects manager
