@@ -7,6 +7,7 @@ create table Debt_Accounts(
 
 create table Products_Table(
     Product_ID int NOT NULL AUTO_INCREMENT,
+    Order int,
     Product_Name varchar(50),
     Trademark varchar(50),
     Manufacture_Country varchar(50),

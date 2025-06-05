@@ -181,10 +181,20 @@ class ProcessRequest:
             return {"StatusCode":ErrorCodes.RedundantValue,"Data":""}
         Cursor.execute(f"SELECT Store_ID from Stores_Table;")
         StoresIDs = Cursor.fetchall()
-        Cursor.execute(
-            f"INSERT INTO Products_Table(Product_Name,Trademark,Manufacture_Country,Purchase_Price,Wholesale_Price,"
-            f"Retail_Price,Quantity_Unit,Partial_Quantity_Precision) VALUES ('{ProductName}','{Trademark}','{ManufactureCountry}',"
-            f"{PurchasePrice},{WholesalePrice},{RetailPrice},'{QuantityUnit}',{PartialQuantityPrecision});")
+        if RequestList.get("ProductOrder") is None:
+            Cursor.execute(
+                f"INSERT INTO Products_Table(Product_Order,Product_Name,Trademark,Manufacture_Country,Purchase_Price,Wholesale_Price,"
+                f"Retail_Price,Quantity_Unit,Partial_Quantity_Precision) "
+                f"SELECT MAX(Product_Order)+1, '{ProductName}', '{Trademark}', '{ManufactureCountry}', "
+                f"{PurchasePrice}, {WholesalePrice}, {RetailPrice}, '{QuantityUnit}', {PartialQuantityPrecision} "
+                f"FROM Products_Table;")
+        else:
+            Order = RequestList["ProductOrder"]
+            Cursor.execute(f"UPDATE Products_Table SET Product_Order = Product_Order + 1 WHERE Product_Order >= {Order};")
+            Cursor.execute(
+                f"INSERT INTO Products_Table(Product_Order,Product_Name,Trademark,Manufacture_Country,Purchase_Price,Wholesale_Price,"
+                f"Retail_Price,Quantity_Unit,Partial_Quantity_Precision) VALUES ('{Order}','{ProductName}','{Trademark}','{ManufactureCountry}',"
+                f"{PurchasePrice},{WholesalePrice},{RetailPrice},'{QuantityUnit}',{PartialQuantityPrecision});")
         for StoreID in StoresIDs:
             Cursor.execute(f"INSERT INTO Product_Quantity_Table(Store_ID,Product_ID,Quantity) VALUES ({StoreID[0]},LAST_INSERT_ID(),0)")
         ProjectDBConnector.commit()
@@ -795,6 +805,8 @@ class CheckValidation:
             )
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
+        if RequestList.get("ProductOrder") != None and not isintstr(RequestList["ProductOrder"]):
+            return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ProductOrder"}
         if not isintstr(PurchasePrice):return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
         if not isintstr(WholesalePrice):return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
         if not isintstr(RetailPrice):return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
@@ -821,6 +833,7 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
         ProjectDBConnector = connections[f"Project{ProjectID}"]
         Cursor = ProjectDBConnector.cursor()
+        # TODO: Add ability to edit ProductOrder
         if not isintstr(ProductID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
         Cursor.execute(f"SELECT Product_ID FROM Products_Table WHERE Product_ID={ProductID};")
         if not Cursor.fetchone():

@@ -50,8 +50,13 @@ function ProductsTabContent({ref}){
     await axios.get(API_URL, {params: RequestParams})
       .then(
         (response)=>{
-          if (!response.data.StatusCode)
-            {setProductsList(response.data.Data)}
+          if (!response.data.StatusCode){
+            setProductsList(response.data.Data.sort((a, b) => {
+              if (a.Product_Order < b.Product_Order) return -1;
+              if (a.Product_Order > b.Product_Order) return 1;
+              return 0;
+            }));
+          }
           else
             {console.log(response.data)}
         })
@@ -98,7 +103,7 @@ function ProductsTabContent({ref}){
 }
 function AddProductForm(){
   const { ProjectID, StoreID } = useContext(GlobalContext);
-  const { UpdateTab, setUpdateTab, AddProductFormRef, setOpendForm } = useContext(ProductsTabContext);
+  const { UpdateTab, setUpdateTab, ProductsList, SelectedRow, AddProductFormRef, setOpendForm } = useContext(ProductsTabContext);
   const AddProductNameRef = useRef();
   const AddProductTrademarkRef = useRef();
   const AddProductManufactureCountryRef = useRef();
@@ -121,6 +126,9 @@ function AddProductForm(){
       QuantityUnit: AddProductQuantityUnitRef.current.value,
       PartialQuantityPrecision: AddProductPartialQuantityPrecisionRef.current.value
     };
+    if (SelectedRow.current){
+      RequestParams.ProductOrder = ProductsList[SelectedRow.current.rowIndex - 1].Product_Order + 1;
+    }
     
     axios.get(API_URL, {params: RequestParams},)
       .then((response)=>{
