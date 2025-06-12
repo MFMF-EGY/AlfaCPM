@@ -86,6 +86,7 @@ function PurchaseTabContent({ref}){
                 <th>الوقت والتاريخ</th>
                 <th>إجمالي المبلغ</th>
                 <th>المدفوع</th>
+                <th>المخصوم من الحساب</th>
               </tr>
             </thead>
             <tbody>
@@ -251,6 +252,13 @@ function CreateInvoiceForm(){
                   Paid: event.target.value
                 });
               }}
+            />
+          </div>
+          <div>
+            <label>المخصوم من الحساب</label>
+            <input type="number"
+              value={InvoiceInfo.TotalPrice - InvoiceInfo.Paid}
+              readOnly
             />
           </div>
         </div>
@@ -503,6 +511,10 @@ function EditInvoiceForm(){
                 }}
               />
             </div>
+            <div>
+              <label>المخصوم من الحساب</label>
+              <input type="number" value={InvoiceInfo.TotalPrice - InvoiceInfo.Paid} readOnly/>
+            </div>
           </div>
           <div>
             <button
@@ -540,7 +552,7 @@ function PurchaseInvoicesTableBody(){
         <td>{invoice.DateTime}</td>
         <td>{invoice.Total_Price}</td>
         <td>{invoice.Paid}</td>
-
+        <td>{invoice.Deducted_From_Account}</td>
       </tr>
     ))
   );

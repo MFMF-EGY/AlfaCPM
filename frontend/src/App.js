@@ -9,7 +9,7 @@ import TransitionTabContent from './TransitionTabContent.js';
 import DebtsAccountsTabContent from './DebtsAccountsTabContent.js';
 import QuantityAdjustmentsTabContent from './QuantityAdjustmentsTabContent.js';
 
-export const API_URL = 'http://0.0.0.0:8000/apis/v1.0/commercial';
+export const API_URL = window.location.protocol+'//'+window.location.hostname+':8000/apis/v1.0/commercial';
 export const GlobalContext = createContext();
 const FormsContext = createContext();
 
@@ -68,7 +68,6 @@ function App() {
               <DebtsAccountsTabContent ref={DebtsAccountsTabContentRef}/>
               <QuantityAdjustmentsTabContent ref={QuantityAdjustmentsTabContentRef}/>
             </div>
-            <div className="Form-container" ></div>
           </>
         }
         <FormsContext.Provider value={{FormSelector, setFormSelector, ProjectStoreChanged, setProjectStoreChanged}}>

@@ -51,22 +51,6 @@ create table Selling_Items(
     Unit_Price float
 );
 
-create table Refund_Invoices(
-    Invoice_ID int NOT NULL AUTO_INCREMENT,
-    Store_ID int,
-    Client_Name VARCHAR(50),
-    DateTime datetime default CURRENT_TIMESTAMP,
-    Total_Price float,
-    PRIMARY KEY (Invoice_ID)
-);
-
-create table Refund_Items(
-    Invoice_ID int NOT NULL,
-    Product_ID int,
-    Quantity float,
-    Unit_Price float
-);
-
 create table Purchase_Invoices(
     Invoice_ID int NOT NULL AUTO_INCREMENT,
     Store_ID int,
@@ -74,7 +58,7 @@ create table Purchase_Invoices(
     DateTime datetime default CURRENT_TIMESTAMP,
     Total_Price float,
     Paid float,
-    Subtracted_From_Account float,
+    Deducted_From_Account float,
     PRIMARY KEY (Invoice_ID)
 );
 create table Purchase_Items(
