@@ -188,7 +188,7 @@ function AddProductForm(){
 }
 
 function SearchProductsForm(){
-  const { SearchParam, setSearchParam, UpdateTab, setUpdateTab, SearchProductsFormRef, setOpendForm } = useContext(ProductsTabContext);
+  const { SearchParam, setSearchParam, UpdateTab, setUpdateTab, setOpendForm } = useContext(ProductsTabContext);
   const SearchProductsIdRef = useRef(null);
   const SearchProductsNameRef = useRef(null);
   const SearchProductsTrademarkRef = useRef(null);
@@ -209,7 +209,7 @@ function SearchProductsForm(){
     setUpdateTab(UpdateTab + 1);
   }
   return(
-    <div className="Form-container" ref={SearchProductsFormRef}>
+    <div className="Form-container">
       <div className="Form">
         <div>
           <button className='Form-close' onClick={(event) => setOpendForm("")}>X</button>

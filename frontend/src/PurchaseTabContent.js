@@ -5,6 +5,7 @@ import { InvoiceItem } from './ItemComponents.js'
 import ItemsListEditor from './ItemsListEditor.js';
 import { API_URL } from './App.js';
 
+const CurrentDateTime = new Date(Date.now());
 const PurchaseTabContext = createContext();
 
 function PurchaseTabContent({ref}){
@@ -13,7 +14,8 @@ function PurchaseTabContent({ref}){
   const [ SearchParam, setSearchParam ] = useState({
     InvoiceID: "",
     SellerName: "",
-    DateTime: "",
+    StartDateTime: CurrentDateTime.getFullYear() + "-" + CurrentDateTime.getMonth().toString().padStart(2, '0') + "-" + CurrentDateTime.getDate().toString().padStart(2, '0') + "T" + "00:00:00",
+    EndDateTime: CurrentDateTime.getFullYear() + "-" + CurrentDateTime.getMonth().toString().padStart(2, '0') + "-" + CurrentDateTime.getDate().toString().padStart(2, '0') + "T" + "23:59:59",
     TotalPrice: "",
     Paid:""
   });
@@ -43,7 +45,8 @@ function PurchaseTabContent({ref}){
     };
     if (SearchParam.InvoiceID){ RequestParams.Invoice_ID = SearchParam.InvoiceID; }
     if (SearchParam.SellerName){ RequestParams.Seller_Name = SearchParam.SellerName; }
-    if (SearchParam.DateTime){ RequestParams.Date_Time = SearchParam.DateTime; }
+    if (SearchParam.StartDateTime){ RequestParams.StartDateTime = SearchParam.StartDateTime; }
+    if (SearchParam.EndDateTime){ RequestParams.EndDateTime = SearchParam.EndDateTime; }
     if (SearchParam.TotalPrice){ RequestParams.Total_Price = SearchParam.TotalPrice; }
     if (SearchParam.Paid){ RequestParams.Paid = SearchParam.Paid; }
     await axios.get(API_URL, {params: RequestParams})
@@ -278,7 +281,114 @@ function CreateInvoiceForm(){
 }
 
 function SearchInvoicesForm(){
-  return ("")
+  const { SearchParam, setSearchParam, UpdateTab, setUpdateTab, setOpendForm } = useContext(PurchaseTabContext);
+  const InvoiceIDFieldRef = useRef();
+  const SellerNameFieldRef = useRef();
+  const StartDateTimeFieldRef = useRef();
+  const EndDateTimeFieldRef = useRef();
+  const TotalPriceFieldRef = useRef();
+  const PaidFieldRef = useRef();
+
+  const SearchInvoices = () => {
+    let StartTime = new Date(StartDateTimeFieldRef.current.value);
+    let EndTime = new Date(EndDateTimeFieldRef.current.value);
+    setSearchParam({
+      InvoiceID: InvoiceIDFieldRef.current.value,
+      SellerName: SellerNameFieldRef.current.value,
+      StartDateTime:
+        StartTime.getFullYear() +
+        "-" +
+        (StartTime.getMonth() + 1)
+          .toString()
+          .padStart(2, "0") +
+        "-" +
+        StartTime
+          .getDate()
+          .toString()
+          .padStart(2, "0") +
+        "T" +
+        StartTime
+          .getHours()
+          .toString()
+          .padStart(2, "0") +
+        ":" +
+        StartTime
+          .getMinutes()
+          .toString()
+          .padStart(2, "0") +
+        ":" +
+        StartTime
+          .getSeconds()
+          .toString()
+          .padStart(2, "0"),
+      EndDateTime: 
+        EndTime.getFullYear() +
+        "-" +
+        (EndTime.getMonth() + 1)
+          .toString()
+          .padStart(2, "0") +
+        "-" +
+        EndTime
+          .getDate()
+          .toString()
+          .padStart(2, "0") +
+        "T" +
+        EndTime
+          .getHours()
+          .toString()
+          .padStart(2, "0") +
+        ":" +
+        EndTime
+          .getMinutes()
+          .toString()
+          .padStart(2, "0") +
+        ":" +
+        EndTime
+          .getSeconds()
+          .toString()
+          .padStart(2, "0"),
+
+      TotalPrice: TotalPriceFieldRef.current.value,
+      Paid: PaidFieldRef.current.value,
+    });
+    setUpdateTab(UpdateTab + 1);
+  }
+  return(
+    <div className='Form-container'>
+      <div className="Form">
+        <div>
+          <button className="Form-close" onClick={(event) => setOpendForm("")}>X</button>
+        </div>
+        <div>
+          <label>الكود</label>
+          <input type="number" defaultValue={SearchParam.InvoiceID} ref={InvoiceIDFieldRef}/>
+        </div>
+        <div>
+          <label>اسم البائع</label>
+          <input type="text" defaultValue={SearchParam.SellerName} ref={SellerNameFieldRef} />
+        </div>
+        <div>
+          <label>بداية الوقت والتاريخ</label>
+          <input type="datetime-local" step="1" defaultValue={SearchParam.StartDateTime} ref={StartDateTimeFieldRef} />
+        </div>
+        <div>
+          <label>نهاية الوقت والتاريخ</label>
+          <input type="datetime-local" step="1" defaultValue={SearchParam.EndDateTime} ref={EndDateTimeFieldRef} />
+        </div>
+        <div>
+          <label>إجمالي المبلغ</label>
+          <input type="number" defaultValue={SearchParam.TotalPrice} ref={TotalPriceFieldRef} />
+        </div>
+        <div>
+          <label>المدفوع</label>
+          <input type="number" defaultValue={SearchParam.Paid} ref={PaidFieldRef} />
+        </div>
+        <div>
+          <button className="Form-submit" onClick={() => SearchInvoices()}>بحث</button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function EditInvoiceForm(){

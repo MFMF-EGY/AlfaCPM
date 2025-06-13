@@ -5,6 +5,7 @@ import { TransitionDocumentItem } from './ItemComponents.js';
 import ItemsListEditor from './ItemsListEditor.js';
 import { API_URL } from './App.js';
 
+const CurrentDateTime = new Date(Date.now());
 const TransitionTabContext = createContext();
 
 export function TransitionTabContent({ref}){
@@ -12,8 +13,11 @@ export function TransitionTabContent({ref}){
   const { StoreID } = useContext(GlobalContext);
   const [ SearchParams, setSearchParams ] = useState({
     DocumentID: "",
-    DateTime: "",
-    StoreID: StoreID
+    StartDateTime: CurrentDateTime.getFullYear() + "-" + CurrentDateTime.getMonth().toString().padStart(2, '0') + "-" + CurrentDateTime.getDate().toString().padStart(2, '0') + "T" + "00:00:00",
+    EndDateTime: CurrentDateTime.getFullYear() + "-" + CurrentDateTime.getMonth().toString().padStart(2, '0') + "-" + CurrentDateTime.getDate().toString().padStart(2, '0') + "T" + "23:59:59",
+    StoreID: StoreID,
+    SourceStoreID: "",
+    DestinationStoreID: ""
   });
   const [ UpdateTab, setUpdateTab ] = useState(0);
   const [ DocumentsList, setDocumentsList ] = useState([]);
@@ -42,9 +46,12 @@ export function TransitionTabContent({ref}){
       ProjectID: ProjectID,
       StoreID: StoreID
     }
-    if (SearchParams.DocumentID){RequestParams.DocumentID = SearchParams.DocumentID;}
-    if (SearchParams.DateTime){RequestParams.DateTime = SearchParams.DateTime;}
-    if (SearchParams.DestinationStoreName){RequestParams.DestinationStoreName = SearchParams.DestinationStoreName;}
+    if (SearchParams.DocumentID){RequestParams.DocumentID = SearchParams.Document_ID;}
+    if (SearchParams.StartDateTime){RequestParams.StartDateTime = SearchParams.StartDateTime;}
+    if (SearchParams.EndDateTime){RequestParams.EndDateTime = SearchParams.EndDateTime;}
+    if (SearchParams.StoreID){RequestParams.StoreID = SearchParams.StoreID;}
+    if (SearchParams.SourceStoreID){RequestParams.Source_Store_ID = SearchParams.SourceStoreID;}
+    if (SearchParams.DestinationStoreID){RequestParams.Destination_Store_ID = SearchParams.DestinationStoreID;}
     await axios.get(API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
@@ -77,7 +84,6 @@ export function TransitionTabContent({ref}){
   return (
     <TransitionTabContext.Provider value={{ SearchParams, setSearchParams, UpdateTab, setUpdateTab, DocumentsList,
       setDocumentsList, OpendForm, setOpendForm, SelectedRow, EditDocumentButtonRef, DeleteDocumentButtonRef, PrintDocumentButtonRef }}>
-    
       <div className="Tab-content" ref={ref}>
         <div className="Table-container">
           <table className="Table" id="Transition-documents-table">
@@ -288,10 +294,100 @@ function CreateDocumentForm(){
 }
 
 function SearchDocumentForm(){
+  const { ProjectID } = useContext(GlobalContext);
   const { SearchParams, setSearchParams, UpdateTab, setUpdateTab, setOpendForm } = useContext(TransitionTabContext);
-  const SearchDocument = async (event) => {
+  const [ Stores, setStores ] = useState([]);
+
+  const DocumentIDFieldRef = useRef();
+  const StartDateTimeFieldRef = useRef();
+  const EndDateTimeFieldRef = useRef();
+  const SourceStoreFieldRef = useRef();
+  const DestinationStoreFieldRef = useRef();
+
+  const SearchDocument = () => {
+    let StartTime = new Date(StartDateTimeFieldRef.current.value);
+    let EndTime = new Date(EndDateTimeFieldRef.current.value);
+    setSearchParams({
+      DocumentID: DocumentIDFieldRef.current.value,
+      StartDateTime:
+        StartTime.getFullYear() +
+        "-" +
+        (StartTime.getMonth() + 1)
+          .toString()
+          .padStart(2, "0") +
+        "-" +
+        StartTime
+          .getDate()
+          .toString()
+          .padStart(2, "0") +
+        "T" +
+        StartTime
+          .getHours()
+          .toString()
+          .padStart(2, "0") +
+        ":" +
+        StartTime
+          .getMinutes()
+          .toString()
+          .padStart(2, "0") +
+        ":" +
+        StartTime
+          .getSeconds()
+          .toString()
+          .padStart(2, "0"),
+      EndDateTime: 
+        EndTime.getFullYear() +
+        "-" +
+        (EndTime.getMonth() + 1)
+          .toString()
+          .padStart(2, "0") +
+        "-" +
+        EndTime
+          .getDate()
+          .toString()
+          .padStart(2, "0") +
+        "T" +
+        EndTime
+          .getHours()
+          .toString()
+          .padStart(2, "0") +
+        ":" +
+        EndTime
+          .getMinutes()
+          .toString()
+          .padStart(2, "0") +
+        ":" +
+        EndTime
+          .getSeconds()
+          .toString()
+          .padStart(2, "0"),
+      SourceStoreID: SourceStoreFieldRef.current.value,
+      DestinationStoreID: DestinationStoreFieldRef.current.value
+    });
     setUpdateTab(UpdateTab+1);
   }
+
+  useEffect(() => {
+    let RequestParams = {
+      RequestType: "GetStores",
+      ProjectID: ProjectID
+    }
+    axios.get(API_URL, {params: RequestParams})
+      .then((response) => {
+        if (!response.data.StatusCode){
+          setStores(response.data.Data);
+        }else{
+          console.log(response.data);
+        }
+      })
+      .catch((error) => console.log(error))
+  }, []);
+
+  useEffect(()=>{
+    SourceStoreFieldRef.current.value = SearchParams.SourceStoreID;
+    DestinationStoreFieldRef.current.value = SearchParams.DestinationStoreID;
+  },[Stores])
+
   return (
     <div className='Form-container'>
       <div className="Form">
@@ -300,15 +396,37 @@ function SearchDocumentForm(){
         </div>
         <div>
           <label>الكود</label>
-          <input type="text" value={SearchParams.DocumentID} onChange={(event) => setSearchParams({...SearchParams, DocumentID: event.target.value})}></input>
+          <input type="number" defaultValue={SearchParams.DocumentID} ref={DocumentIDFieldRef} />
         </div>
         <div>
-          <label>الوقت والتاريخ</label>
-          <input type="text" value={SearchParams.DateTime} onChange={(event) => setSearchParams({...SearchParams, DateTime: event.target.value})}></input>
+          <label>بداية الوقت والتاريخ</label>
+          <input type="datetime-local" step="1" defaultValue={SearchParams.StartDateTime} ref={StartDateTimeFieldRef} />
+        </div>
+        <div>
+          <label>نهاية الوقت والتاريخ</label>
+          <input type="datetime-local" step="1" defaultValue={SearchParams.EndDateTime} ref={EndDateTimeFieldRef} />
+        </div>
+        <div>
+          <label>المخزن المصدر</label>
+          <select type="text"
+            ref={SourceStoreFieldRef}
+          >
+            <option value="">اختر مخزن</option>
+              {Stores.map((store) => (
+                <option key={store.Store_ID} value={store.Store_ID}>{store.Store_Name}</option>
+              ))}
+          </select>
         </div>
         <div>
           <label>المخزن المقصد</label>
-          <input type="text" value={SearchParams.DestinationStoreName} onChange={(event) => setSearchParams({...SearchParams, DestinationStoreName: event.target.value})}></input>
+          <select type="text"
+            ref={DestinationStoreFieldRef}
+          >
+            <option value="">اختر مخزن</option>
+              {Stores.map((store) => (
+                <option key={store.Store_ID} value={store.Store_ID}>{store.Store_Name}</option>
+              ))}
+          </select>
         </div>
         <div>
           <button onClick={(event) => SearchDocument(event)}>بحث</button>

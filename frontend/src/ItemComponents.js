@@ -151,7 +151,7 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       <td>{Index+1}</td>
       <td>
         <SuggestionsInput Type="text" Value={ItemsList[Index].ProductName}
-          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country)}
+          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country + " - الكمية الموجودة: " + suggestion.Quantity)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
             setSelectedItemIndex(Index);
@@ -188,7 +188,7 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       </td>
       <td>
         <SuggestionsInput Type="text" Value={ItemsList[Index].Trademark}
-          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country)}
+          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country + " - الكمية الموجودة: " + suggestion.Quantity)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
             setSelectedItemIndex(Index);
@@ -225,7 +225,7 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       </td>
       <td>
         <SuggestionsInput Type="text" Value={ItemsList[Index].ManufactureCountry}
-          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country)}
+          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country + " - الكمية الموجودة: " + suggestion.Quantity)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
             setSelectedItemIndex(Index);
@@ -299,7 +299,6 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
               ...OtherValues,
             };
             setItemsList(NewItemsList);
-            //setItemChanged(!ItemChanged);
           }} 
         />
         <button className="Field-lock" 

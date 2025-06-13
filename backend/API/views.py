@@ -458,6 +458,16 @@ class ProcessRequest:
         Filters.remove("ProjectID")
         Filters.remove("StoreID")
         Sql = f"SELECT * FROM {InvoiceType}_Invoices WHERE Store_ID={StoreID}"
+        if "StartDateTime" in Filters:
+            Sql += f" AND DateTime >= '{RequestList["StartDateTime"]}'"
+            Filters.remove("StartDateTime")
+        if "EndDateTime" in Filters:
+            Sql += f" AND DateTime <= '{RequestList["EndDateTime"]}'"
+            Filters.remove("EndDateTime")
+        if "Source_Store_ID" in Filters and "Destination_Store_ID" in Filters:
+            Sql += f" AND (Source_Store_ID = {RequestList['Source_Store_ID']} OR Destination_Store_ID = {RequestList['Destination_Store_ID']})"
+            Filters.remove("Source_Store_ID")
+            Filters.remove("Destination_Store_ID")
         Filters.remove("InvoiceType")
         if Filters:
             Sql += " AND "
@@ -476,13 +486,26 @@ class ProcessRequest:
         Sql = f"SELECT Document_ID,DateTime,Source_Store_ID,Source_Store.Store_Name AS Source_Store_Name,Destination_Store_ID,Destination_Store.Store_Name AS Destination_Store_Name FROM Transition_Documents " \
               f"JOIN Stores_Table AS Source_Store ON Transition_Documents.Source_Store_ID = Source_Store.Store_ID " \
               f"JOIN Stores_Table AS Destination_Store ON Transition_Documents.Destination_Store_ID = Destination_Store.Store_ID " \
-              f"WHERE Transition_Documents.Source_Store_ID = {StoreID} OR Transition_Documents.Destination_Store_ID = {StoreID} "
-        
+              f"WHERE (Transition_Documents.Source_Store_ID = {StoreID} OR Transition_Documents.Destination_Store_ID = {StoreID} ) "
+        if "StartDateTime" in Filters:
+            Sql += f" AND DateTime >= '{RequestList["StartDateTime"]}' "
+            Filters.remove("StartDateTime")
+        if "EndDateTime" in Filters:
+            Sql += f" AND DateTime <= '{RequestList["EndDateTime"]}' "
+            Filters.remove("EndDateTime")
+        if "Source_Store_ID" in Filters and "Destination_Store_ID" in Filters:
+            Sql += f" AND (Source_Store_ID = {RequestList['Source_Store_ID']} OR Destination_Store_ID = {RequestList['Destination_Store_ID']}) "
+            Filters.remove("Source_Store_ID")
+            Filters.remove("Destination_Store_ID")
+        if Filters:
+            Sql += " AND "
         for Filter in Filters:
             Sql += f"{Filter}='{RequestList[Filter]}'"
             Sql += " AND "
-        print(Sql)
-        Cursor.execute(Sql[:-5])
+        if Filters:
+            Cursor.execute(Sql[:-5])
+        else:
+            Cursor.execute(Sql)
         return {"StatusCode":0,"Data":Cursor.dictfetchall()}
     
     def GetInvoice(Cursor, RequestList):
@@ -540,9 +563,11 @@ class SearchFiltersValidation:
             match Filter:
                 case "Invoice_ID" | "Client_ID":
                     if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-                case "DateTime":
-                    if not isinstance(RequestList[Filter],str): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-                    if not datetime.strptime(RequestList[Filter],"%y-%m-%d %H-%M-%S"): return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
+                case "StartDateTime" | "EndDateTime":
+                    try:
+                        datetime.strptime(RequestList[Filter],"%Y-%m-%dT%H:%M:%S")
+                    except:
+                        return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
                 case "Total_Price":
                     if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
                 case "Paid":
@@ -567,9 +592,11 @@ class SearchFiltersValidation:
             match Filter:
                 case "Invoice_ID" | "Seller_Name":
                     if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-                case "DateTime":
-                    if not isinstance(RequestList[Filter],str): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-                    if not datetime.strptime(RequestList[Filter],"%y-%m-%d %H-%M-%S"): return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
+                case "StartDateTime" | "EndDateTime":
+                    try:
+                        datetime.strptime(RequestList[Filter],"%Y-%m-%dT%H:%M:%S")
+                    except:
+                        return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
                 case "Total_Price":
                     if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
                 case "Paid":
@@ -579,7 +606,7 @@ class SearchFiltersValidation:
                 case "Product_ID":
                     if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
                 case "Product_Name":
-                    if not isinstance(RequestList[Filter],str): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    pass
                 case "Quantity":
                     if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
                 case "Purchase_Price":
@@ -1104,16 +1131,20 @@ class CheckValidation:
 
         if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
         if not isintstr(StoreID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+        Cursor = connections[f"Project{ProjectID}"].cursor()
+        Cursor.execute(f"SELECT Store_ID FROM Stores_Table WHERE Store_ID={StoreID};")
+        if Cursor.fetchone() is None:
+            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
         match InvoiceType:
             case "Selling":
                 Error = SearchFiltersValidation.SellingInvoices(RequestList)
             case "Purchase":
                 Error = SearchFiltersValidation.PurchaseInvoices(RequestList)
             case _:
-                return {"StatusCode":ErrorCodes.InvalidValue,"Parameter":InvoiceType}
+                return {"StatusCode":ErrorCodes.InvalidValue,"Variable":InvoiceType}
         if Error:
             return Error
-        Cursor = connections[f"Project{ProjectID}"].cursor()
+        
         return ProcessRequest.SearchInvoices(Cursor, RequestList)
     def SearchTransitionDocuments(RequestList):
         try:
@@ -1131,8 +1162,11 @@ class CheckValidation:
             match Filter:
                 case "Document_ID" | "Source_Store_ID" | "Destination_Store_ID" | "Product_ID" | "Quantity":
                     if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable": Filter}
-                case "DateTime":
-                    if not datetime.strptime(RequestList[Filter], "%y-%m-%d %H-%M-%S"): return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"DateTime"}
+                case "StartDateTime" | "EndDateTime":
+                    try:
+                        datetime.strptime(RequestList[Filter],"%Y-%m-%dT%H:%M:%S")
+                    except:
+                        return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
                 case "RequestType" | "InvoiceType" | "ProjectID"| "StoreID":
                     pass
                 case _:
