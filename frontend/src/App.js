@@ -151,27 +151,36 @@ const ProjectStoreSelect = React.memo(({value, GlobalContext, setFormSelector}) 
 function CreateProjectForm(){
   const { setFormSelector } = useContext(FormsContext);
   const { ProjectStoreChanged, setProjectStoreChanged } = useContext(FormsContext);
-  const { ProjectID, setProjectID } = useContext(GlobalContext);
+  const [ Submiting, setSubmiting ] = useState(false);
   const ProjectNameRef = useRef();
   const ProjectDescriptionRef = useRef()
-  const createProject = async (event) => {
+  const createProject = async () => {
+    setSubmiting(true);
     var RequestParms = {
       RequestType: "CreateProject",
       ProjectName: ProjectNameRef.current.value,
       ProjectDescription: ProjectDescriptionRef.current.value
     }
     await axios.get(API_URL,{params: RequestParms})
-    .then(() => {
-      setFormSelector("");
-      setProjectStoreChanged(!ProjectStoreChanged);
+    .then((response) => {
+      if (!response.data.StatusCode){
+        setFormSelector("");
+        setProjectStoreChanged(!ProjectStoreChanged);
+      } else {
+        setSubmiting(false);
+        console.log(response.data);
+      }
     })
-    .catch((error) => console.log(error))
+    .catch((error) => {
+      setSubmiting(false);
+      console.log(error);
+    })
   }
   return(
     <div className='Form-container'>
       <div className="Form">
         <div>
-          <button className="Form-close" onClick={(event) => setFormSelector("")}>X</button>
+          <button className="Form-close" onClick={() => setFormSelector("")}>X</button>
         </div>
         <div>
           <label>اسم المشروع</label>
@@ -182,7 +191,7 @@ function CreateProjectForm(){
           <input type="text" ref={ProjectDescriptionRef}></input>
         </div>
         <div>
-          <button onClick={(event) => createProject(event)}>إنشاء</button>
+          <button onClick={() => createProject()} disabled={Submiting}>إنشاء</button>
         </div>
       </div>
     </div>
@@ -193,9 +202,11 @@ function CreateStoreForm(){
   const { setFormSelector } = useContext(FormsContext);
   const { ProjectStoreChanged, setProjectStoreChanged } = useContext(FormsContext);
   const { ProjectID, setProjectID } = useContext(GlobalContext);
+  const [ Submiting, setSubmiting ] = useState(false);
   const StoreNameRef = useRef();
-  const StoreAddressRef = useRef()
-  const addStore = async (event) => {
+  const StoreAddressRef = useRef();
+  const addStore = async () => {
+    setSubmiting(true);
     var RequestParms = {
       RequestType: "AddStore",
       ProjectID: ProjectID,
@@ -208,6 +219,7 @@ function CreateStoreForm(){
         setFormSelector("");
         setProjectStoreChanged(!ProjectStoreChanged);
       }else{
+        setSubmiting(false);
         console.log(response.data);
       }
     })
@@ -217,7 +229,7 @@ function CreateStoreForm(){
     <div className='Form-container'>
       <div className="Form">
         <div>
-          <button className="Form-close" onClick={(event) => setFormSelector("")}>X</button>
+          <button className="Form-close" onClick={() => setFormSelector("")}>X</button>
         </div>
         <div>
           <label>اسم المخزن</label>
@@ -228,7 +240,7 @@ function CreateStoreForm(){
           <input type="text" ref={StoreAddressRef}></input>
         </div>
         <div>
-          <button onClick={(event) => addStore(event)}>إنشاء</button>
+          <button onClick={() => addStore()} disabled={Submiting}>إنشاء</button>
         </div>
       </div>
     </div>

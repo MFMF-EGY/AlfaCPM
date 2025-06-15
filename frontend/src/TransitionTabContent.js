@@ -11,13 +11,27 @@ const TransitionTabContext = createContext();
 export function TransitionTabContent({ref}){
   const { ProjectID } = useContext(GlobalContext);
   const { StoreID } = useContext(GlobalContext);
-  const [ SearchParams, setSearchParams ] = useState({
+  const [SearchParams, setSearchParams] = useState({
     DocumentID: "",
-    StartDateTime: CurrentDateTime.getFullYear() + "-" + CurrentDateTime.getMonth().toString().padStart(2, '0') + "-" + CurrentDateTime.getDate().toString().padStart(2, '0') + "T" + "00:00:00",
-    EndDateTime: CurrentDateTime.getFullYear() + "-" + CurrentDateTime.getMonth().toString().padStart(2, '0') + "-" + CurrentDateTime.getDate().toString().padStart(2, '0') + "T" + "23:59:59",
+    StartDateTime:
+      CurrentDateTime.getFullYear() +
+      "-" +
+      (CurrentDateTime.getMonth() + 1).toString().padStart(2, "0") +
+      "-" +
+      CurrentDateTime.getDate().toString().padStart(2, "0") +
+      "T" +
+      "00:00:00",
+    EndDateTime:
+      CurrentDateTime.getFullYear() +
+      "-" +
+      (CurrentDateTime.getMonth() + 1).toString().padStart(2, "0") +
+      "-" +
+      CurrentDateTime.getDate().toString().padStart(2, "0") +
+      "T" +
+      "23:59:59",
     StoreID: StoreID,
     SourceStoreID: "",
-    DestinationStoreID: ""
+    DestinationStoreID: "",
   });
   const [ UpdateTab, setUpdateTab ] = useState(0);
   const [ DocumentsList, setDocumentsList ] = useState([]);
@@ -46,7 +60,7 @@ export function TransitionTabContent({ref}){
       ProjectID: ProjectID,
       StoreID: StoreID
     }
-    if (SearchParams.DocumentID){RequestParams.DocumentID = SearchParams.Document_ID;}
+    if (SearchParams.DocumentID){RequestParams.Document_ID = SearchParams.DocumentID;}
     if (SearchParams.StartDateTime){RequestParams.StartDateTime = SearchParams.StartDateTime;}
     if (SearchParams.EndDateTime){RequestParams.EndDateTime = SearchParams.EndDateTime;}
     if (SearchParams.StoreID){RequestParams.StoreID = SearchParams.StoreID;}
@@ -120,7 +134,7 @@ function CreateDocumentForm(){
   const { ProjectID } = useContext(GlobalContext);
   const { StoreID } = useContext(GlobalContext);
   const { setOpendForm, UpdateTab, setUpdateTab } = useContext(TransitionTabContext);
-  const [ Processing, setProcessing ] = useState(false);
+  const [ Submiting, setSubmiting ] = useState(false);
   const [ Stores, setStores ] = useState([]);
   const [ DocumentInfo, setDocumentInfo ] = useState({
     DestinationStoreID: ""
@@ -162,7 +176,7 @@ function CreateDocumentForm(){
   }
 
   const CreateDocument = async () => {
-    setProcessing(true);
+    setSubmiting(true);
     let RequestParams = {
       RequestType: "Transit",
       ProjectID: ProjectID,
@@ -180,15 +194,15 @@ function CreateDocumentForm(){
         } else if (response.data.StatusCode === 6){
           InsufficientQuantityProducts.current = response.data.Data.ProductsIDs;
           fetchExistingQuantites(ItemsList);
-          setProcessing(false);
+          setSubmiting(false);
           alert("كميات غير متوفرة");
         }else{
-          setProcessing(false);
+          setSubmiting(false);
           console.log(response.data);
         }
       })
       .catch((error) => {
-        setProcessing(false);
+        setSubmiting(false);
         console.log(error);
       })
   }
@@ -284,7 +298,7 @@ function CreateDocumentForm(){
             className="Form-submit"
             onClick={(event) => CreateDocument(event)}
             disabled={
-              Processing || ValidationChecker.includes(false) || !ValidationChecker.includes(true) || DocumentInfo.DestinationStoreID === ""
+              Submiting || ValidationChecker.includes(false) || !ValidationChecker.includes(true) || DocumentInfo.DestinationStoreID === ""
             }
           >إنشاء</button>
         </div>
@@ -442,7 +456,7 @@ function EditDocumentForm(){
   const { UpdateTab, setUpdateTab, setOpendForm, SelectedRow } = useContext(TransitionTabContext);
   const [ Stores, setStores ] = useState([])
   const [ Loading, setLoading ] = useState(true);
-  const [ Processing, setProcessing ] = useState(false);
+  const [ Submiting, setSubmiting ] = useState(false);
   const [ DocumentInfo, setDocumentInfo ] = useState({
     DocumentID: "",
     DateTime: "",
@@ -550,10 +564,10 @@ function EditDocumentForm(){
         } else if (response.data.StatusCode === 6){
           InsufficientQuantityProducts.current = response.data.Data.ProductsIDs;
           fetchExistingQuantites(ItemsList);
-          setProcessing(false);
+          setSubmiting(false);
           alert("كميات غير متوفرة");
         }else{
-          setProcessing(false);
+          setSubmiting(false);
           console.log(response.data);
         }
       })
@@ -666,7 +680,7 @@ function EditDocumentForm(){
               className="Form-submit"
               onClick={(event) => EditDocument(event)}
               disabled={
-                Processing || ValidationChecker.includes(false) || !ValidationChecker.includes(true) ||
+                Submiting || ValidationChecker.includes(false) || !ValidationChecker.includes(true) ||
                 DocumentInfo.SourceStoreID === "" || DocumentInfo.DestinationStoreID === ""
               }
             >تعديل</button>

@@ -14,10 +14,24 @@ function PurchaseTabContent({ref}){
   const [ SearchParam, setSearchParam ] = useState({
     InvoiceID: "",
     SellerName: "",
-    StartDateTime: CurrentDateTime.getFullYear() + "-" + CurrentDateTime.getMonth().toString().padStart(2, '0') + "-" + CurrentDateTime.getDate().toString().padStart(2, '0') + "T" + "00:00:00",
-    EndDateTime: CurrentDateTime.getFullYear() + "-" + CurrentDateTime.getMonth().toString().padStart(2, '0') + "-" + CurrentDateTime.getDate().toString().padStart(2, '0') + "T" + "23:59:59",
+    StartDateTime:
+      CurrentDateTime.getFullYear() +
+      "-" +
+      (CurrentDateTime.getMonth() + 1).toString().padStart(2, "0") +
+      "-" +
+      CurrentDateTime.getDate().toString().padStart(2, "0") +
+      "T" +
+      "00:00:00",
+    EndDateTime:
+      CurrentDateTime.getFullYear() +
+      "-" +
+      (CurrentDateTime.getMonth() + 1).toString().padStart(2, "0") +
+      "-" +
+      CurrentDateTime.getDate().toString().padStart(2, "0") +
+      "T" +
+      "23:59:59",
     TotalPrice: "",
-    Paid:""
+    Paid: "",
   });
   const [ UpdateTab, setUpdateTab ] = useState(0);
   const [ InvoicesList, setInvoicesList] = useState([]);
@@ -117,7 +131,7 @@ function PurchaseTabContent({ref}){
 function CreateInvoiceForm(){
   const { ProjectID, StoreID } = useContext(GlobalContext);
   const { UpdateTab, setUpdateTab, setOpendForm } = useContext(PurchaseTabContext);
-  
+  const [ Submiting, setSubmiting ] = useState(false);
   const [ InvoiceInfo, setInvoiceInfo ] = useState({
     SellerName: "",
     TotalPrice: "",
@@ -138,6 +152,7 @@ function CreateInvoiceForm(){
   const ExistingQuantities = useRef([]);
 
   const createInvoice = async (event) => {
+    setSubmiting(true);
     var RequestParams = {
       RequestType: "Purchase",
       ProjectID: ProjectID,
@@ -156,9 +171,13 @@ function CreateInvoiceForm(){
           setUpdateTab(UpdateTab + 1);
         }else{
           console.log(response.data);
+          setSubmiting(false);
         }
       })
-      .catch((error) => console.log(error))
+      .catch((error) => {
+        setSubmiting(false);
+        console.log(error)
+      })
   }
 
   useEffect(() => {
@@ -270,7 +289,7 @@ function CreateInvoiceForm(){
             className="Form-submit"
             onClick={(event) => createInvoice(event)}
             disabled={
-              ValidationChecker.includes(false) || !ValidationChecker.includes(true) || InvoiceInfo.SellerName === "" || InvoiceInfo.Paid === "" ||
+              Submiting || ValidationChecker.includes(false) || !ValidationChecker.includes(true) || InvoiceInfo.SellerName === "" || InvoiceInfo.Paid === "" ||
               InvoiceInfo.Paid <= 0 || InvoiceInfo.Paid > InvoiceInfo.TotalPrice
             }
           >إنشاء</button>
@@ -290,60 +309,60 @@ function SearchInvoicesForm(){
   const PaidFieldRef = useRef();
 
   const SearchInvoices = () => {
-    let StartTime = new Date(StartDateTimeFieldRef.current.value);
-    let EndTime = new Date(EndDateTimeFieldRef.current.value);
+    let StartDateTime = new Date(StartDateTimeFieldRef.current.value);
+    let EndDateTime = new Date(EndDateTimeFieldRef.current.value);
     setSearchParam({
       InvoiceID: InvoiceIDFieldRef.current.value,
       SellerName: SellerNameFieldRef.current.value,
       StartDateTime:
-        StartTime.getFullYear() +
+        StartDateTime.getFullYear() +
         "-" +
-        (StartTime.getMonth() + 1)
+        (StartDateTime.getMonth() + 1)
           .toString()
           .padStart(2, "0") +
         "-" +
-        StartTime
+        StartDateTime
           .getDate()
           .toString()
           .padStart(2, "0") +
         "T" +
-        StartTime
+        StartDateTime
           .getHours()
           .toString()
           .padStart(2, "0") +
         ":" +
-        StartTime
+        StartDateTime
           .getMinutes()
           .toString()
           .padStart(2, "0") +
         ":" +
-        StartTime
+        StartDateTime
           .getSeconds()
           .toString()
           .padStart(2, "0"),
       EndDateTime: 
-        EndTime.getFullYear() +
+        EndDateTime.getFullYear() +
         "-" +
-        (EndTime.getMonth() + 1)
+        (EndDateTime.getMonth() + 1)
           .toString()
           .padStart(2, "0") +
         "-" +
-        EndTime
+        EndDateTime
           .getDate()
           .toString()
           .padStart(2, "0") +
         "T" +
-        EndTime
+        EndDateTime
           .getHours()
           .toString()
           .padStart(2, "0") +
         ":" +
-        EndTime
+        EndDateTime
           .getMinutes()
           .toString()
           .padStart(2, "0") +
         ":" +
-        EndTime
+        EndDateTime
           .getSeconds()
           .toString()
           .padStart(2, "0"),
@@ -395,6 +414,7 @@ function EditInvoiceForm(){
   const { ProjectID, StoreID } = useContext(GlobalContext);
   const { UpdateTab, setUpdateTab, CreateInvoiceFormRef, setOpendForm, SelectedRow } = useContext(PurchaseTabContext);
   const [ Loading , setLoading ] = useState(true);
+  const [ Submiting, setSubmiting ] = useState(false);
   const [ InvoiceInfo, setInvoiceInfo ] = useState({
     InvoiceID: "",
     SellerName: "",
@@ -493,7 +513,8 @@ function EditInvoiceForm(){
       })
   }
 
-  const editInvoice = async (event) => {
+  const editInvoice = async () => {
+    setSubmiting(true);
     var RequestParams = {
       RequestType: "EditPurchaseInvoice",
       ProjectID: ProjectID,
@@ -511,10 +532,14 @@ function EditInvoiceForm(){
         if (!response.data.StatusCode){
           setUpdateTab(UpdateTab + 1);
         }else{
+          setSubmiting(false);
           console.log(response.data);
         }
       })
-      .catch((error) => console.log(error))
+      .catch((error) => {
+        setSubmiting(false);
+        console.log(error);
+      })
   }
   
   useEffect(() => {
@@ -629,9 +654,9 @@ function EditInvoiceForm(){
           <div>
             <button
               className="Form-submit"
-              onClick={(event) => editInvoice(event)}
+              onClick={() => editInvoice()}
               disabled={
-                ValidationChecker.includes(false) || !ValidationChecker.includes(true) || InvoiceInfo.SellerName === "" || InvoiceInfo.Paid === "" ||
+                Submiting || ValidationChecker.includes(false) || !ValidationChecker.includes(true) || InvoiceInfo.SellerName === "" || InvoiceInfo.Paid === "" ||
                 InvoiceInfo.Paid <= 0 || InvoiceInfo.Paid > InvoiceInfo.TotalPrice
               }
             >تعديل</button>

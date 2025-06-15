@@ -11,13 +11,27 @@ const SellingTabContext = createContext();
 function SellingTabContent({ref}){
   const { ProjectID } = useContext(GlobalContext);
   const { StoreID } = useContext(GlobalContext);
-  const [ SearchParam, setSearchParam ] = useState({
+  const [SearchParam, setSearchParam] = useState({
     InvoiceID: "",
     ClientName: "",
-    StartDateTime: CurrentDateTime.getFullYear() + "-" + CurrentDateTime.getMonth().toString().padStart(2, '0') + "-" + CurrentDateTime.getDate().toString().padStart(2, '0') + "T" + "00:00:00",
-    EndDateTime: CurrentDateTime.getFullYear() + "-" + CurrentDateTime.getMonth().toString().padStart(2, '0') + "-" + CurrentDateTime.getDate().toString().padStart(2, '0') + "T" + "23:59:59",
+    StartDateTime:
+      CurrentDateTime.getFullYear() +
+      "-" +
+      (CurrentDateTime.getMonth() + 1).toString().padStart(2, "0") +
+      "-" +
+      CurrentDateTime.getDate().toString().padStart(2, "0") +
+      "T" +
+      "00:00:00",
+    EndDateTime:
+      CurrentDateTime.getFullYear() +
+      "-" +
+      (CurrentDateTime.getMonth() + 1).toString().padStart(2, "0") +
+      "-" +
+      CurrentDateTime.getDate().toString().padStart(2, "0") +
+      "T" +
+      "23:59:59",
     TotalPrice: "",
-    Paid:""
+    Paid: "",
   });
   const [ UpdateTab, setUpdateTab ] = useState(0);
   const [ InvoicesList, setInvoicesList] = useState([]);
@@ -231,7 +245,7 @@ function SearchInvoicesForm(){
 function CreateInvoiceForm(){
   const { ProjectID, StoreID } = useContext(GlobalContext);
   const { UpdateTab, setUpdateTab, setOpendForm } = useContext(SellingTabContext);
-  const [ Processing, setProcessing ] = useState(false);
+  const [ Submiting, setSubmiting ] = useState(false);
   const [ InvoiceInfo, setInvoiceInfo ] = useState({
     SellerName: "",
     TotalPrice: "",
@@ -277,7 +291,7 @@ function CreateInvoiceForm(){
   }
 
   const createInvoice = async () => {
-    setProcessing(true);
+    setSubmiting(true);
     var RequestParams = {
       RequestType: "Sell",
       ProjectID: ProjectID,
@@ -297,15 +311,15 @@ function CreateInvoiceForm(){
         } else if (response.data.StatusCode === 6){
           InsufficientQuantityProducts.current = response.data.ProductsIDs;
           fetchExistingQuantites(ItemsList);
-          setProcessing(false);
+          setSubmiting(false);
           alert("كميات غير متوفرة");
         }else{
-          setProcessing(false);
+          setSubmiting(false);
           console.log(response.data);
         }
       })
       .catch((error) => {
-        setProcessing(false);
+        setSubmiting(false);
         console.log(error)
       })
   }
@@ -430,7 +444,7 @@ function CreateInvoiceForm(){
             className="Form-submit"
             onClick={(event) => createInvoice(event)}
             disabled={
-              Processing || ValidationChecker.includes(false) || !ValidationChecker.includes(true) || InvoiceInfo.SellerName === "" || InvoiceInfo.Paid === "" ||
+              Submiting || ValidationChecker.includes(false) || !ValidationChecker.includes(true) || InvoiceInfo.SellerName === "" || InvoiceInfo.Paid === "" ||
               InvoiceInfo.TransferredToAccount === "" || InvoiceInfo.Paid > InvoiceInfo.TotalPrice || InvoiceInfo.TransferredToAccount > InvoiceInfo.TotalPrice
             }
           >إنشاء</button>
@@ -444,7 +458,7 @@ function EditInvoiceForm(){
   const { ProjectID, StoreID } = useContext(GlobalContext);
   const { UpdateTab, setUpdateTab, setOpendForm, SelectedRow } = useContext(SellingTabContext);
   const [ Loading , setLoading ] = useState(true);
-  const [ Processing, setProcessing ] = useState(false);
+  const [ Submiting, setSubmiting ] = useState(false);
   const [ InvoiceInfo, setInvoiceInfo ] = useState({
     SellerName: "",
     TotalPrice: "",
@@ -546,7 +560,7 @@ function EditInvoiceForm(){
   }
 
   const editInvoice = async () => {
-    setProcessing(true);
+    setSubmiting(true);
     var RequestParams = {
       RequestType: "EditSellingInvoice",
       ProjectID: ProjectID,
@@ -566,15 +580,15 @@ function EditInvoiceForm(){
         } else if (response.data.StatusCode === 6){
           InsufficientQuantityProducts.current = response.data.ProductsIDs;
           fetchExistingQuantites(ItemsList);
-          setProcessing(false);
+          setSubmiting(false);
           alert("كميات غير متوفرة");
         }else{
-          setProcessing(false);
+          setSubmiting(false);
           console.log(response.data);
         }
       })
       .catch((error) => {
-        setProcessing(false);
+        setSubmiting(false);
         console.log(error)
       })
   }
@@ -706,7 +720,7 @@ function EditInvoiceForm(){
               className="Form-submit"
               onClick={() => editInvoice()}
               disabled={
-                Processing || ValidationChecker.includes(false) || !ValidationChecker.includes(true) || InvoiceInfo.ClientName === "" || InvoiceInfo.Paid === "" ||
+                Submiting || ValidationChecker.includes(false) || !ValidationChecker.includes(true) || InvoiceInfo.ClientName === "" || InvoiceInfo.Paid === "" ||
                 InvoiceInfo.TransferredToAccount === "" || InvoiceInfo.Paid > InvoiceInfo.TotalPrice || InvoiceInfo.TransferredToAccount > InvoiceInfo.TotalPrice
               }
             >تعديل</button>

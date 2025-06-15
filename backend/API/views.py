@@ -474,6 +474,7 @@ class ProcessRequest:
         for Filter in Filters:
             value = RequestList[Filter]
             Sql += f"{Filter}='{value}'"
+        print(Sql)
         Cursor.execute(Sql)
         return {"StatusCode":0,"Data":Cursor.dictfetchall()}
     
@@ -551,12 +552,19 @@ class ProcessRequest:
         Filters.remove("ProjectID")
         Filters.remove("StoreID")
         Sql = f"SELECT * FROM Products_Quantities_Adjustments JOIN Products_Table ON Products_Quantities_Adjustments.Product_ID = Products_Table.Product_ID WHERE Store_ID={StoreID}"
+        if "StartDateTime" in Filters:
+            Sql += f" AND DateTime >= '{RequestList['StartDateTime']}'"
+            Filters.remove("StartDateTime")
+        if "EndDateTime" in Filters:
+            Sql += f" AND DateTime <= '{RequestList['EndDateTime']}'"
+            Filters.remove("EndDateTime")
         for Filter in Filters:
             Sql += " AND "
             value = RequestList[Filter]
             Sql += f"{Filter} LIKE '%{value}%'"
         Cursor.execute(Sql)
         return {"StatusCode":0,"Data":Cursor.dictfetchall()}
+    
 class SearchFiltersValidation:
     def SellingInvoices(RequestList):
         for Filter in RequestList.keys():
@@ -1236,8 +1244,11 @@ class CheckValidation:
             match Filter:
                 case "Quantity":
                     if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":Filter}
-                case "DateTime":
-                    if not datetime.strptime(RequestList[Filter], "%y-%m-%d %H-%M-%S"): return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"DateTime"}
+                case "StartDateTime" | "EndDateTime":
+                    try:
+                        datetime.strptime(RequestList[Filter], "%Y-%m-%dT%H:%M:%S")
+                    except:
+                        return {"StatusCode":ErrorCodes.InvalidValue,"Variable":Filter}
                 case "RequestType" | "OperationType" | "ProjectID" | "StoreID" | "Product_Name" | "Trademark" | "Manufacture_Country" | "Note":
                     pass
                 case _:
