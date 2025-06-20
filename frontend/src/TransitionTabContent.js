@@ -8,7 +8,7 @@ import { API_URL } from './App.js';
 const CurrentDateTime = new Date(Date.now());
 const TransitionTabContext = createContext();
 
-export function TransitionTabContent({ref}){
+export function TransitionTabContent(){
   const { ProjectID } = useContext(GlobalContext);
   const { StoreID } = useContext(GlobalContext);
   const [SearchParams, setSearchParams] = useState({
@@ -98,7 +98,7 @@ export function TransitionTabContent({ref}){
   return (
     <TransitionTabContext.Provider value={{ SearchParams, setSearchParams, UpdateTab, setUpdateTab, DocumentsList,
       setDocumentsList, OpendForm, setOpendForm, SelectedRow, EditDocumentButtonRef, DeleteDocumentButtonRef, PrintDocumentButtonRef }}>
-      <div className="Tab-content" ref={ref}>
+      <div className="Main-tab-content">
         <div className="Table-container">
           <table className="Table" id="Transition-documents-table">
             <thead>

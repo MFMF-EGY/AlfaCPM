@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef, createContext, useContext } from 'react';
+import { TabPanel } from 'react-tabs';
 import axios from 'axios';
 import { GlobalContext } from './App.js';
 
-function DebtsAccountsTabContent({ref}){
+function DebtsAccountsTabContent(){
   return (
-    <div className="Tab-content" ref={ref}></div>
+    <div className="Main-tab-content"></div>
   )
 }
 

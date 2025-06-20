@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, createContext, useContext, use } from 'react';
+import { TabPanel } from 'react-tabs';
 import axios from 'axios';
 import { GlobalContext } from './App.js';
 import { InvoiceItem } from './ItemComponents.js'
@@ -8,7 +9,7 @@ import { API_URL } from './App.js';
 const CurrentDateTime = new Date(Date.now());
 const PurchaseTabContext = createContext();
 
-function PurchaseTabContent({ref}){
+function PurchaseTabContent(){
   const { ProjectID } = useContext(GlobalContext);
   const { StoreID } = useContext(GlobalContext);
   const [ SearchParam, setSearchParam ] = useState({
@@ -92,7 +93,7 @@ function PurchaseTabContent({ref}){
   return(
     <PurchaseTabContext.Provider value={{ SearchParam, setSearchParam, UpdateTab, setUpdateTab, InvoicesList,
       setInvoicesList, OpendForm, setOpendForm, SelectedRow, EditInvoiceButtonRef, DeleteInvoiceButtonRef }}>
-      <div className="Tab-content" ref={ref}>
+      <div className="Main-tab-content">
         <div className="Table-container">
           <table className="Table" id="Invoices-table">
             <thead>

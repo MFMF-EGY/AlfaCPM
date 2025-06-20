@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, createContext, useContext, use } from 'react';
+import { TabPanel } from 'react-tabs';
 import axios from 'axios';
 import SuggestionsInput from './SuggestionsInput.js';
 import { GlobalContext } from './App.js';
@@ -96,7 +97,7 @@ function QuantityAdjustmentsTabContent({ref}){
   return(
     <QuantityAdjustmentsContext.Provider value={{ SearchParam, setSearchParam, UpdateTab, setUpdateTab, OperationsList,
       setOperationsList, OpendForm, setOpendForm, SelectedRow, DeleteOperationButtonRef }}>
-      <div className="Tab-content" ref={ref}>
+      <div className="Main-tab-content">
         <div className="Table-container">
           <table className="Table">
             <thead>

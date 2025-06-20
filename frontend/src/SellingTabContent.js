@@ -8,7 +8,7 @@ import { API_URL } from './App.js';
 const CurrentDateTime = new Date(Date.now());
 const SellingTabContext = createContext();
 
-function SellingTabContent({ref}){
+function SellingTabContent(){
   const { ProjectID } = useContext(GlobalContext);
   const { StoreID } = useContext(GlobalContext);
   const [SearchParam, setSearchParam] = useState({
@@ -95,7 +95,7 @@ function SellingTabContent({ref}){
   return(
     <SellingTabContext.Provider value={{ SearchParam, setSearchParam, UpdateTab, setUpdateTab, InvoicesList,
       setInvoicesList, OpendForm, setOpendForm, SelectedRow, EditInvoiceButtonRef, DeleteInvoiceButtonRef }}>
-      <div className="Tab-content" ref={ref}>
+      <div className="Main-tab-content">
         <div className="Table-container">
           <table className="Table" id="Selling-table">
             <thead>

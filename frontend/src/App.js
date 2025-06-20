@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, createContext, useContext, useCallback, use } from 'react';
+import { Tabs, Tab } from "./UiComponents/Tabs.js";
 import './App.css';
 import axios from 'axios';
 import MainTableTabContent from './MainTableTabContent.js';
@@ -18,62 +19,85 @@ function App() {
   const [ StoreID, setStoreID ] = useState(null);
   const [ FormSelector, setFormSelector] = useState(null);
   const [ ProjectStoreChanged, setProjectStoreChanged ] = useState(false);
-  const MainTableTabContentRef = useRef();
-  const SellingTabContentRef = useRef();
-  const PurchaseTabContentRef = useRef();
-  const TransitionTabContentRef = useRef();
-  const ProductsTabContentRef = useRef();
-  const DebtsAccountsTabContentRef = useRef();
-  const QuantityAdjustmentsTabContentRef = useRef();
-  const CurrentTabContent = useRef(MainTableTabContentRef);
+  const [ TabNames, setTabNames ] = useState(["MainTableTab"]);
+  const [ TabIndex, setTabIndex ] = useState(1)
 
   useEffect(() => {
-    CurrentTabContent.current = MainTableTabContentRef;
+
   }, [ProjectID, StoreID]);
 
-  const changeTab = (event, TargetTabContent) => {
-    document.getElementsByClassName("Active-tab")[0].classList.remove("Active-tab");
-    CurrentTabContent.current.current.style.display = "none";
-    TargetTabContent.current.style.display = "inline-flex";
-    event.target.classList.add("Active-tab");
-    CurrentTabContent.current = TargetTabContent;
+  const changeTab = (TargetTabContent) => {
+    // if (CurrentTabRef.current.current) {
+    //   CurrentTabRef.current.current.classList.remove("Active-tab");
+    // }
+    
+    // if (CurrentTabContentRef.current.current){
+    //   CurrentTabContentRef.current.current.style.display = "none";
+    // }
+
+    // if (!TabContentsRefs[TargetTabContent].current) return;
+    // TabsRefs[TargetTabContent].current.classList.add("Active-tab");
+    // TabContentsRefs[TargetTabContent].current.style.display = "inline-flex";
+    // CurrentTabRef.current = TabsRefs[TargetTabContent];
+    // CurrentTabContentRef.current = TabContentsRefs[TargetTabContent];
   }
 
   return (
-    <GlobalContext.Provider value={{ StoreID, setStoreID, ProjectID, setProjectID }}>
+    <GlobalContext.Provider
+      value={{
+        StoreID,
+        setStoreID,
+        ProjectID,
+        setProjectID,
+        Tabs: TabNames,
+        setTabs: setTabNames,
+      }}
+    >
       <div className="App">
         <header className="App-header">
-          <ProjectStoreSelect value={ProjectStoreChanged} GlobalContext={{ProjectID, setProjectID, StoreID, setStoreID}} setFormSelector={setFormSelector}/>
+          <ProjectStoreSelect
+            value={ProjectStoreChanged}
+            GlobalContext={{ ProjectID, setProjectID, StoreID, setStoreID }}
+            setFormSelector={setFormSelector}
+          />
         </header>
         <main>
-        { (ProjectID && StoreID) &&
-          <>
-            <div>
-              <ul className="Tab-bar">
-                <li className="Tab Active-tab" onClick={(event) => changeTab(event,MainTableTabContentRef)}>القائمة الرئيسية</li>
-                <li className="Tab" onClick={(event) => changeTab(event,SellingTabContentRef)}>فواتير البيع</li>
-                <li className="Tab" onClick={(event) => changeTab(event,PurchaseTabContentRef)}>فواتير الشراء</li>
-                <li className="Tab" onClick={(event) => changeTab(event,TransitionTabContentRef)}>مستندات التحويل</li>
-                <li className="Tab" onClick={(event) => changeTab(event,ProductsTabContentRef)}>قائمة المنتجات</li>
-                <li className="Tab" onClick={(event) => changeTab(event,DebtsAccountsTabContentRef)}>حسابات الديون</li>
-                <li className="Tab" onClick={(event) => changeTab(event,QuantityAdjustmentsTabContentRef)}>تعديل الكميات</li>
-              </ul>
-            </div>
-            <div className="Tab-contents">
-              <MainTableTabContent ref={MainTableTabContentRef}/>
-              <SellingTabContent ref={SellingTabContentRef}/>
-              <PurchaseTabContent ref={PurchaseTabContentRef}/>
-              <TransitionTabContent ref={TransitionTabContentRef}/>
-              <ProductsTabContent ref={ProductsTabContentRef}/>
-              <DebtsAccountsTabContent ref={DebtsAccountsTabContentRef}/>
-              <QuantityAdjustmentsTabContent ref={QuantityAdjustmentsTabContentRef}/>
-            </div>
-          </>
-        }
-        <FormsContext.Provider value={{FormSelector, setFormSelector, ProjectStoreChanged, setProjectStoreChanged}}>
-          { (FormSelector === "CreateProjectForm") && <CreateProjectForm/> }
-          { (FormSelector === "CreateStoreForm") && <CreateStoreForm/> }
-        </FormsContext.Provider>
+          {ProjectID && StoreID && (
+            <Tabs openedTabs={[true,false,false,false,false,false,false]}>
+              <Tab title="القائمة الرئيسية">
+                <MainTableTabContent />
+              </Tab>
+              <Tab title="فواتير البيع" closable={true}>
+                <SellingTabContent />
+              </Tab>
+              <Tab title="فواتير الشراء" closable={true}>
+                <PurchaseTabContent />
+              </Tab>
+              <Tab title="التحويلات" closable={true}>
+                <TransitionTabContent />
+              </Tab>
+              <Tab title="المنتجات" closable={true}>
+                <ProductsTabContent />
+              </Tab>
+              <Tab title="حسابات الديون" closable={true}>
+                <DebtsAccountsTabContent />
+              </Tab>
+              <Tab title="تعديلات الكميات" closable={true}>
+                <QuantityAdjustmentsTabContent />
+              </Tab>
+            </Tabs>
+          )}
+          <FormsContext.Provider
+            value={{
+              FormSelector,
+              setFormSelector,
+              ProjectStoreChanged,
+              setProjectStoreChanged,
+            }}
+          >
+            {FormSelector === "CreateProjectForm" && <CreateProjectForm />}
+            {FormSelector === "CreateStoreForm" && <CreateStoreForm />}
+          </FormsContext.Provider>
         </main>
       </div>
     </GlobalContext.Provider>

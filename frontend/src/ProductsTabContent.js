@@ -66,7 +66,7 @@ function ProductsTabContent({ref}){
   return(
     <ProductsTabContext.Provider value={{ SearchParam, setSearchParam, UpdateTab, setUpdateTab, ProductsList, setProductsList, OpendForm, setOpendForm, AddProductFormRef,
       EditProductButtonRef, EditProductFormRef, SearchProductsFormRef, PrintProductsFormRef, SelectedRow }}>
-      <div className="Tab-content" ref={ref}>
+      <div className="Main-tab-content">
         <div className="Table-container">
           <table className="Table" id="Products-table">
             <thead>
