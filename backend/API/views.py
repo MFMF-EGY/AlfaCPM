@@ -1,8 +1,10 @@
 from django.shortcuts import render
 from django.http import JsonResponse
-import json
-import mysql.connector
 from django.db import connections
+import os
+import docxtpl
+import jinja2
+import subprocess
 from datetime import datetime
 from decimal import Decimal
 from django.conf import settings
@@ -107,6 +109,12 @@ def isintstr(value):
         return True
     except:
         return False
+
+def convert_docx_to_pdf(docx_path, pdf_path):
+    subprocess.run([
+        'libreoffice', '--headless', '--convert-to', 'pdf',
+        '--outdir', os.path.dirname(pdf_path), '--infilter=repair', docx_path
+    ], check=True)
 
 class ProcessRequest:
     def CreateProject(RequestList):
@@ -512,7 +520,7 @@ class ProcessRequest:
     def GetInvoice(Cursor, RequestList):
         InvoiceType = RequestList["InvoiceType"]
         InvoiceID = RequestList["InvoiceID"]
-        Cursor.execute(f"SELECT * FROM {InvoiceType}_Invoices WHERE Invoice_ID={InvoiceID};")
+        Cursor.execute(f"SELECT * FROM {InvoiceType}_Invoices JOIN Stores_Table ON {InvoiceType}_Invoices.Store_ID = Stores_Table.Store_ID WHERE Invoice_ID={InvoiceID};")
         if (InvoiceInfo := Cursor.dictfetchone()) == {}:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"InvoiceID"}
         Cursor.execute(f"SELECT Invoice_ID, Product_Name, Trademark, Manufacture_Country, Quantity_Unit, {InvoiceType}_Items.Product_ID, Quantity, Unit_Price FROM {InvoiceType}_Items JOIN Products_Table ON {InvoiceType}_Items.Product_ID = Products_Table.Product_ID WHERE Invoice_ID={InvoiceID};")
@@ -564,6 +572,24 @@ class ProcessRequest:
             Sql += f"{Filter} LIKE '%{value}%'"
         Cursor.execute(Sql)
         return {"StatusCode":0,"Data":Cursor.dictfetchall()}
+    def PrintInvoice(Cursor, RequestList):
+        InvoiceType, InvoiceID = RequestList["InvoiceType"], RequestList["InvoiceID"]
+        Cursor.execute(f"SELECT * FROM {InvoiceType}_Invoices JOIN Stores_Table ON {InvoiceType}_Invoices.Store_ID = Stores_Table.Store_ID WHERE Invoice_ID={InvoiceID};")
+        InvoiceInfo = Cursor.dictfetchone()
+        Cursor.execute(f"SELECT * FROM {InvoiceType}_Items JOIN Products_Table ON {InvoiceType}_Items.Product_ID = Products_Table.Product_ID WHERE Invoice_ID={InvoiceID};")
+        InvoiceItems = Cursor.dictfetchall()
+        Path = os.path.dirname(os.path.abspath(__file__)) + f"/DocumentsTemplates/{InvoiceType}InvoiceTemplate.docx"
+        GeneratedDocument = docxtpl.DocxTemplate(Path)
+        # GeneratedDocument.render(InvoiceInfo)
+        # GeneratedDocument.render({"Items":InvoiceItems})
+        GeneratedDocument.render({})
+        output_path = os.path.join(settings.BASE_DIR, "tmp", "GeneratedInvoice.docx")
+        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        GeneratedDocument.save(output_path)
+        convert_docx_to_pdf("/tmp/GeneratedInvoice.docx", "/tmp/GeneratedInvoice.pdf")
+        return {"StatusCode":0,"Data":"/tmp/GeneratedInvoice.docx"}
+
+        
     
 class SearchFiltersValidation:
     def SellingInvoices(RequestList):
@@ -1254,6 +1280,23 @@ class CheckValidation:
                 case _:
                     return {"StatusCode":ErrorCodes.InvalidFilter,"Variable":Filter}
         return ProcessRequest.SearchAdjustmentOperations(Cursor, RequestList)
+    
+    def PrintInvoice(RequestList):
+        try:
+            ProjectID, InvoiceType, InvoiceID = RequestList["ProjectID"], RequestList["InvoiceType"], RequestList["InvoiceID"]
+        except:
+            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
+        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+        if not InvoiceType in ["Purchase","Selling"]: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
+        if not isintstr(InvoiceID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+        if ProjectsDBsConnectors.get(int(RequestList["ProjectID"])) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
+        ProjectDBConnector = connections[f"Project{ProjectID}"]
+        Cursor = ProjectDBConnector.cursor()
+        Cursor.execute(f"SELECT Invoice_ID FROM {InvoiceType}_Invoices WHERE Invoice_ID={InvoiceID};")
+        if Cursor.fetchone() is None:
+            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"InvoiceID"}
+        return ProcessRequest.PrintInvoice(Cursor, RequestList)
+
 def SanatizeRequest(RequestList):
     if isinstance(RequestList, list):
         for i in range(len(RequestList)):
@@ -1325,6 +1368,8 @@ def StartRequestProcessing(Request):
             Response = CheckValidation.GetTransitionDocument(RequestList)
         case "AdjustProductQuantity":
             Response = CheckValidation.AdjustProductQuantity(RequestList)
+        case "PrintInvoice":
+            Response = CheckValidation.PrintInvoice(RequestList)
         case _:
             Response = {"StatusCode": ErrorCodes.InvalidValue,"Variable": "RequestType"}
     Response = JsonResponse(Response)

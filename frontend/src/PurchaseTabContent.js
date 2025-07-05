@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef, createContext, useContext, use } from 'react';
-import { TabPanel } from 'react-tabs';
+import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import axios from 'axios';
 import { GlobalContext } from './App.js';
 import { InvoiceItem } from './ItemComponents.js'
 import ItemsListEditor from './ItemsListEditor.js';
+import PurchaseInvoiceTemplate from './DocumentsTemplates/PurchaseInvoiceTemplate.js';
 import { API_URL } from './App.js';
 
 const CurrentDateTime = new Date(Date.now());
@@ -40,7 +40,7 @@ function PurchaseTabContent(){
   
   const EditInvoiceButtonRef = useRef(null);
   const DeleteInvoiceButtonRef = useRef(null);
-  
+  const PrintInvoiceButtonRef = useRef(null);
   const SelectedRow = useRef(null);
 
   useEffect(() => {
@@ -48,6 +48,7 @@ function PurchaseTabContent(){
     SelectedRow.current = null;
     EditInvoiceButtonRef.current.disabled = true;
     DeleteInvoiceButtonRef.current.disabled = true;
+    PrintInvoiceButtonRef.current.disabled = true;
     setOpendForm(null); 
     fetchInvoices();
   }, [UpdateTab, ProjectID, StoreID]);
@@ -90,9 +91,34 @@ function PurchaseTabContent(){
         })
       .catch((err)=>{console.log(err)});
   }
+  const printInvoice = async (InvoiceID) => {
+    var RequestParams = {
+      RequestType: "GetInvoice",
+      InvoiceType: "Purchase",
+      ProjectID: ProjectID,
+      InvoiceID: InvoiceID
+    };
+    await axios.get(API_URL, {params: RequestParams})
+      .then((response) => {
+        if (!response.data.StatusCode){
+          let InvoiceData = response.data.Data;
+
+          let InvoiceTemplate = PurchaseInvoiceTemplate(InvoiceData);
+
+          const printWindow = window.open('', '', 'width=800,height=600');
+          printWindow.document.write(InvoiceTemplate);
+          printWindow.document.close();
+          printWindow.print();
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }
+
   return(
     <PurchaseTabContext.Provider value={{ SearchParam, setSearchParam, UpdateTab, setUpdateTab, InvoicesList,
-      setInvoicesList, OpendForm, setOpendForm, SelectedRow, EditInvoiceButtonRef, DeleteInvoiceButtonRef }}>
+      setInvoicesList, OpendForm, setOpendForm, SelectedRow, EditInvoiceButtonRef, DeleteInvoiceButtonRef, PrintInvoiceButtonRef }}>
       <div className="Main-tab-content">
         <div className="Table-container">
           <table className="Table" id="Invoices-table">
@@ -116,13 +142,14 @@ function PurchaseTabContent(){
            OpendForm === "EditInvoiceForm" && <EditInvoiceForm/>}
         </div>
         <div className='Side-bar'>
-          <button className="Sidebar-button" onClick={(event) => setOpendForm("CreateInvoiceForm")}>إنشاء فاتورة</button>
+          <button className="Sidebar-button" onClick={() => setOpendForm("CreateInvoiceForm")}>إنشاء فاتورة</button>
           <button className="Sidebar-button" ref={EditInvoiceButtonRef} 
-            onClick={(event) => setOpendForm("EditInvoiceForm")}>تعديل فاتورة</button>
+            onClick={() => setOpendForm("EditInvoiceForm")}>تعديل فاتورة</button>
           <button className="Sidebar-button" ref={DeleteInvoiceButtonRef}
-            onClick={(event) => deleteInvoice(SelectedRow.current.children[1].innerText)}>حذف فاتورة</button>
-          <button className="Sidebar-button" onClick={(event) => setOpendForm("SearchInvoicesForm")}>بحث</button>
-          <button className="Sidebar-button">طباعة فاتورة</button>
+            onClick={() => deleteInvoice(SelectedRow.current.children[1].innerText)}>حذف فاتورة</button>
+          <button className="Sidebar-button" onClick={() => setOpendForm("SearchInvoicesForm")}>بحث</button>
+          <button className="Sidebar-button" onClick={() => printInvoice(SelectedRow.current.children[1].innerText)}
+            ref={PrintInvoiceButtonRef}>طباعة فاتورة</button>
         </div>
       </div>
     </PurchaseTabContext.Provider>
@@ -670,13 +697,14 @@ function EditInvoiceForm(){
 }
 
 function PurchaseInvoicesTableBody(){
-  const { InvoicesList, SelectedRow, EditInvoiceButtonRef, DeleteInvoiceButtonRef } = useContext(PurchaseTabContext);
+  const { InvoicesList, SelectedRow, EditInvoiceButtonRef, DeleteInvoiceButtonRef, PrintInvoiceButtonRef } = useContext(PurchaseTabContext);
   const selectRow = (event) => {
     if (SelectedRow.current){SelectedRow.current.classList.remove("Selected-row");}
     SelectedRow.current = event.currentTarget;
     SelectedRow.current.classList.add("Selected-row");
     EditInvoiceButtonRef.current.disabled = false;
     DeleteInvoiceButtonRef.current.disabled = false;
+    PrintInvoiceButtonRef.current.disabled = false;
   }
 
   return (

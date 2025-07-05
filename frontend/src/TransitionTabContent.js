@@ -4,6 +4,7 @@ import { GlobalContext } from './App.js';
 import { TransitionDocumentItem } from './ItemComponents.js';
 import ItemsListEditor from './ItemsListEditor.js';
 import { API_URL } from './App.js';
+import TransitionDocumentTemplate from './DocumentsTemplates/TransitionDocumentTemplate.js';
 
 const CurrentDateTime = new Date(Date.now());
 const TransitionTabContext = createContext();
@@ -94,6 +95,29 @@ export function TransitionTabContent(){
       })
       .catch((error) => console.log(error))
   }
+  const printDocument = async (DocumentID) => {
+    var RequestParams = {
+      RequestType: "GetTransitionDocument",
+      ProjectID: ProjectID,
+      DocumentID: DocumentID
+    };
+    await axios.get(API_URL, {params: RequestParams})
+      .then((response) => {
+        if (!response.data.StatusCode){
+          let DocumentData = response.data.Data;
+
+          let InvoiceTemplate = TransitionDocumentTemplate(DocumentData);
+
+          const printWindow = window.open('', '', 'width=800,height=600');
+          printWindow.document.write(InvoiceTemplate);
+          printWindow.document.close();
+          printWindow.print();
+        }
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }
 
   return (
     <TransitionTabContext.Provider value={{ SearchParams, setSearchParams, UpdateTab, setUpdateTab, DocumentsList,
@@ -123,7 +147,8 @@ export function TransitionTabContent(){
           <button className='Sidebar-button' ref={SearchDocumentButtonRef} onClick={(event) => setOpendForm("SearchDocumentForm")}>بحث</button>
           <button className='Sidebar-button' ref={EditDocumentButtonRef} onClick={(event) => setOpendForm("EditDocumentForm")}>تعديل مستند</button>
           <button className='Sidebar-button' ref={DeleteDocumentButtonRef} onClick={(event) => deleteDocument(event)}>حذف مستند</button>
-          <button className='Sidebar-button' ref={PrintDocumentButtonRef}>طباعة</button>
+          <button className='Sidebar-button' onClick={() => printDocument(SelectedRow.current.children[1].innerText)}
+            ref={PrintDocumentButtonRef}>طباعة</button>
         </div>
       </div>
 

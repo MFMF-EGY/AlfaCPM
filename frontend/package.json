@@ -5,18 +5,23 @@
   "homepage": ".",
   "dependencies": {
     "cra-template": "1.2.0",
+    "html-template-tag": "^4.1.1",
+    "jspdf": "^3.0.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "web-vitals": "^4.2.4"
   },
   "devDependencies": {
-    "react-scripts": "^5.0.1"
+    "html-loader": "^5.1.0",
+    "react-app-rewired": "^2.2.1",
+    "react-scripts": "^5.0.1",
+    "webpack-cli": "^6.0.1"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
+    "test": "react-app-rewired test",
+    "eject": "react-app-rewired eject"
   },
   "eslintConfig": {
     "extends": [
