@@ -7,7 +7,7 @@ create table Debt_Accounts(
 
 create table Products_Table(
     Product_ID int NOT NULL AUTO_INCREMENT,
-    Order int,
+    Product_Order int,
     Product_Name varchar(50),
     Trademark varchar(50),
     Manufacture_Country varchar(50),
@@ -84,7 +84,7 @@ create table Products_Quantities_Adjustments(
     Store_ID int,
     Operation_Type varchar(20),
     Product_ID int,
-    DateTime datetime default CURRENT_TIME,
+    DateTime datetime default CURRENT_TIMESTAMP,
     Quantity float,
     Note TEXT,
     PRIMARY KEY (Operation_ID)
