@@ -429,21 +429,19 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
   const { ProjectID } = useContext(GlobalContext);
   const { StoreID } = useContext(GlobalContext);
   
-  const InitialProductID = useRef(ItemsList[Index].ProductID);
-  const [ InitialQuantity, setInitialQuantity ] = useState(ItemsList[Index].Quantity);
   const [ Suggestions, setSuggestions ] = useState([]);
   const [ FilteredSuggestions, setFilteredSuggestions ] = useState([]);
 
   const Item = useRef();
 
-  const suggestProduct = async () => {
+  const suggestProduct = async (NewItemsList) => {
     var RequestParams = {
       RequestType: "SearchProducts",
       ProjectID: ProjectID,
       StoreID: StoreID,
-      Product_Name: ItemsList[Index].ProductName,
-      Trademark: ItemsList[Index].Trademark,
-      Manufacture_Country: ItemsList[Index].ManufactureCountry
+      Product_Name: NewItemsList[Index].ProductName,
+      Trademark: NewItemsList[Index].Trademark,
+      Manufacture_Country: NewItemsList[Index].ManufactureCountry
     }
     await axios.get(API_URL, {params: RequestParams})
       .then((response) => {
@@ -541,7 +539,7 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
             };
             ExistingQuantities[Index] = undefined;
             setItemsList(NewItemsList);
-            suggestProduct();
+            suggestProduct(NewItemsList);
           }}
           onSelect={(index) => {
             let NewItemsList = [...ItemsList];
