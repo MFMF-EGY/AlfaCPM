@@ -65,7 +65,7 @@ mysql -u $db_user -p"$db_password" -e "
 echo "Database setup completed successfully."
 echo "Starting backend service..."
 # Start the Django backend server in the background.
-python3 ../backend/manage.py runserver&
+python3 ../backend/manage.py runserver 0.0.0.0:8000&
 # Start the Node.js frontend server in the background.
 echo "Starting frontend service..."
 npm --prefix ../frontend start&
