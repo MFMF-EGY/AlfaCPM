@@ -25,9 +25,18 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       RequestType: "SearchProducts",
       ProjectID: ProjectID,
       StoreID: StoreID,
-      Product_Name: NewItemsList[Index].ProductName,
-      Trademark: NewItemsList[Index].Trademark,
-      Manufacture_Country: NewItemsList[Index].ManufactureCountry
+    }
+    if (NewItemsList[Index].ProductID){
+      RequestParams.Product_ID__Product_ID = NewItemsList[Index].ProductID;
+    }
+    if (NewItemsList[Index].ProductName){
+      RequestParams.Product_ID__Product_Name = NewItemsList[Index].ProductName;
+    }
+    if (NewItemsList[Index].Trademark){
+      RequestParams.Product_ID__Trademark = NewItemsList[Index].Trademark;
+    }
+    if (NewItemsList[Index].ManufactureCountry){
+      RequestParams.Product_ID__Manufacture_Country = NewItemsList[Index].ManufactureCountry;
     }
     await axios.get(API_URL, {params: RequestParams})
       .then((response) => {
@@ -44,15 +53,15 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       RequestType: "SearchProducts",
       ProjectID: ProjectID,
       StoreID: StoreID,
-      Product_ID: NewItemsList[Index].ProductID
+      Product_ID__Product_ID: NewItemsList[Index].ProductID
     }
     await axios.get(API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           Prices.current = [
-            response.data.Data[0].Purchase_Price,
-            response.data.Data[0].Wholesale_Price,
-            response.data.Data[0].Retail_Price
+            response.data.Data[0].Product_ID__Purchase_Price,
+            response.data.Data[0].Product_ID__Wholesale_Price,
+            response.data.Data[0].Product_ID__Retail_Price
           ];
           let NewPricesSuggestions = [];
           Prices.current.forEach((price, i) => {
@@ -70,34 +79,31 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       })
       .catch((error) => console.log(error))
   }
-  useEffect(() => {
-    if (ItemsList[Index].ProductID)
-      suggestPrices(ItemsList);
-  },[])
+
 
   useEffect(() => {
     let NewItemsList = [...ItemsList];
     let MatchedSuggestion = FilteredSuggestions.find(suggestion =>
-      suggestion.Product_Name === ItemsList[Index].ProductName &&
-      suggestion.Trademark === ItemsList[Index].Trademark &&
-      suggestion.Manufacture_Country === ItemsList[Index].ManufactureCountry
+      suggestion.Product_ID__Product_Name === ItemsList[Index].ProductName &&
+      suggestion.Product_ID__Trademark === ItemsList[Index].Trademark &&
+      suggestion.Product_ID__Manufacture_Country === ItemsList[Index].ManufactureCountry
     );
     
     if (MatchedSuggestion) {
       NewItemsList[Index] = {
         ...NewItemsList[Index],
-        ProductName: MatchedSuggestion.Product_Name,
-        ProductID: MatchedSuggestion.Product_ID,
-        Trademark: MatchedSuggestion.Trademark,
-        ManufactureCountry: MatchedSuggestion.Manufacture_Country,
-        QuantityUnit: MatchedSuggestion.Quantity_Unit
+        ProductName: MatchedSuggestion.Product_ID__Product_Name,
+        ProductID: MatchedSuggestion.Product_ID__Product_ID,
+        Trademark: MatchedSuggestion.Product_ID__Trademark,
+        ManufactureCountry: MatchedSuggestion.Product_ID__Manufacture_Country,
+        QuantityUnit: MatchedSuggestion.Product_ID__Quantity_Unit
       };
       ExistingQuantities[Index] = MatchedSuggestion.Quantity
     }
 
     setFilteredSuggestions(
       Suggestions.filter(suggestion => 
-        !NewItemsList.some(item => item.ProductID === suggestion.Product_ID)
+        !NewItemsList.some(item => item.ProductID === suggestion.Product_ID__Product_ID)
       )
     );
     
@@ -151,7 +157,7 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       <td>{Index+1}</td>
       <td>
         <SuggestionsInput Type="text" Value={ItemsList[Index].ProductName}
-          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country + " - الكمية الموجودة: " + suggestion.Quantity)}
+          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_ID__Product_Name + " - " + suggestion.Product_ID__Trademark + " - " + suggestion.Product_ID__Manufacture_Country + " - الكمية الموجودة: " + suggestion.Quantity)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
             setSelectedItemIndex(Index);
@@ -175,11 +181,11 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
             let NewItemsList = [...ItemsList];
             NewItemsList[Index] = {
               ...NewItemsList[Index],
-              ProductName: FilteredSuggestions[index].Product_Name,
-              ProductID: FilteredSuggestions[index].Product_ID,
-              Trademark: FilteredSuggestions[index].Trademark,
-              ManufactureCountry: FilteredSuggestions[index].Manufacture_Country,
-              QuantityUnit: FilteredSuggestions[index].Quantity_Unit
+              ProductName: FilteredSuggestions[index].Product_ID__Product_Name,
+              ProductID: FilteredSuggestions[index].Product_ID__Product_ID,
+              Trademark: FilteredSuggestions[index].Product_ID__Trademark,
+              ManufactureCountry: FilteredSuggestions[index].Product_ID__Manufacture_Country,
+              QuantityUnit: FilteredSuggestions[index].Product_ID__Quantity_Unit
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
@@ -188,7 +194,7 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       </td>
       <td>
         <SuggestionsInput Type="text" Value={ItemsList[Index].Trademark}
-          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country + " - الكمية الموجودة: " + suggestion.Quantity)}
+          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_ID__Product_Name + " - " + suggestion.Product_ID__Trademark + " - " + suggestion.Product_ID__Manufacture_Country + " - الكمية الموجودة: " + suggestion.Quantity)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
             setSelectedItemIndex(Index);
@@ -212,11 +218,11 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
             let NewItemsList = [...ItemsList];
             NewItemsList[Index] = {
               ...NewItemsList[Index],
-              ProductName: FilteredSuggestions[index].Product_Name,
-              ProductID: FilteredSuggestions[index].Product_ID,
-              Trademark: FilteredSuggestions[index].Trademark,
-              ManufactureCountry: FilteredSuggestions[index].Manufacture_Country,
-              QuantityUnit: FilteredSuggestions[index].Quantity_Unit
+              ProductName: FilteredSuggestions[index].Product_ID__Product_Name,
+              ProductID: FilteredSuggestions[index].Product_ID__Product_ID,
+              Trademark: FilteredSuggestions[index].Product_ID__Trademark,
+              ManufactureCountry: FilteredSuggestions[index].Product_ID__Manufacture_Country,
+              QuantityUnit: FilteredSuggestions[index].Product_ID__Quantity_Unit
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
@@ -225,7 +231,7 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       </td>
       <td>
         <SuggestionsInput Type="text" Value={ItemsList[Index].ManufactureCountry}
-          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country + " - الكمية الموجودة: " + suggestion.Quantity)}
+          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_ID__Product_Name + " - " + suggestion.Product_ID__Trademark + " - " + suggestion.Product_ID__Manufacture_Country + " - الكمية الموجودة: " + suggestion.Quantity)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
             setSelectedItemIndex(Index);
@@ -249,11 +255,11 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
             let NewItemsList = [...ItemsList];
             NewItemsList[Index] = {
               ...NewItemsList[Index],
-              ProductName: FilteredSuggestions[index].Product_Name,
-              ProductID: FilteredSuggestions[index].Product_ID,
-              Trademark: FilteredSuggestions[index].Trademark,
-              ManufactureCountry: FilteredSuggestions[index].Manufacture_Country,
-              QuantityUnit: FilteredSuggestions[index].Quantity_Unit
+              ProductName: FilteredSuggestions[index].Product_ID__Product_Name,
+              ProductID: FilteredSuggestions[index].Product_ID__Product_ID,
+              Trademark: FilteredSuggestions[index].Product_ID__Trademark,
+              ManufactureCountry: FilteredSuggestions[index].Product_ID__Manufacture_Country,
+              QuantityUnit: FilteredSuggestions[index].Product_ID__Quantity_Unit
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
@@ -439,9 +445,15 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
       RequestType: "SearchProducts",
       ProjectID: ProjectID,
       StoreID: StoreID,
-      Product_Name: NewItemsList[Index].ProductName,
-      Trademark: NewItemsList[Index].Trademark,
-      Manufacture_Country: NewItemsList[Index].ManufactureCountry
+    }
+    if (NewItemsList[Index].ProductName){
+      RequestParams.Product_ID__Product_Name = NewItemsList[Index].ProductName;
+    }
+    if (NewItemsList[Index].Trademark){
+      RequestParams.Product_ID__Trademark = NewItemsList[Index].Trademark;
+    }
+    if (NewItemsList[Index].ManufactureCountry){
+      RequestParams.Product_ID__Manufacture_Country = NewItemsList[Index].ManufactureCountry;
     }
     await axios.get(API_URL, {params: RequestParams})
       .then((response) => {
@@ -458,24 +470,24 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
   useEffect(() => {
     let NewItemsList = [...ItemsList];
     let MatchedSuggestion = Suggestions.find(suggestion =>
-      suggestion.Product_Name === ItemsList[Index].ProductName &&
-      suggestion.Trademark === ItemsList[Index].Trademark &&
-      suggestion.Manufacture_Country === ItemsList[Index].ManufactureCountry
+      suggestion.Product_ID__Product_Name === ItemsList[Index].ProductName &&
+      suggestion.Product_ID__Trademark === ItemsList[Index].Trademark &&
+      suggestion.Product_ID__Manufacture_Country === ItemsList[Index].ManufactureCountry
     )
     if (MatchedSuggestion) {
       NewItemsList[Index] = {
         ...NewItemsList[Index],
-        ProductName: MatchedSuggestion.Product_Name,
-        ProductID: MatchedSuggestion.Product_ID,
-        Trademark: MatchedSuggestion.Trademark,
-        ManufactureCountry: MatchedSuggestion.Manufacture_Country,
-        QuantityUnit: MatchedSuggestion.Quantity_Unit
+        ProductName: MatchedSuggestion.Product_ID__Product_Name,
+        ProductID: MatchedSuggestion.Product_ID__Product_ID,
+        Trademark: MatchedSuggestion.Product_ID__Trademark,
+        ManufactureCountry: MatchedSuggestion.Product_ID__Manufacture_Country,
+        QuantityUnit: MatchedSuggestion.Product_ID__Quantity_Unit
       };
       ExistingQuantities[Index] = MatchedSuggestion.Quantity
     }
     setFilteredSuggestions(
       Suggestions.filter(suggestion => 
-        !NewItemsList.some(item => item.ProductID === suggestion.Product_ID)
+        !NewItemsList.some(item => item.ProductID === suggestion.Product_ID__Product_ID)
       )
     );
 
@@ -524,7 +536,7 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
       <td>{Index+1}</td>
       <td>
         <SuggestionsInput Type="text" Value={ItemsList[Index].ProductName}
-          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country)}
+          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_ID__Product_Name + " - " + suggestion.Product_ID__Trademark + " - " + suggestion.Product_ID__Manufacture_Country)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
             setSelectedItemIndex(Index);
@@ -545,11 +557,11 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
             let NewItemsList = [...ItemsList];
             NewItemsList[Index] = {
               ...NewItemsList[Index],
-              ProductName: FilteredSuggestions[index].Product_Name,
-              ProductID: FilteredSuggestions[index].Product_ID,
-              Trademark: FilteredSuggestions[index].Trademark,
-              ManufactureCountry: FilteredSuggestions[index].Manufacture_Country,
-              QuantityUnit: FilteredSuggestions[index].Quantity_Unit
+              ProductName: FilteredSuggestions[index].Product_ID__Product_Name,
+              ProductID: FilteredSuggestions[index].Product_ID__Product_ID,
+              Trademark: FilteredSuggestions[index].Product_ID__Trademark,
+              ManufactureCountry: FilteredSuggestions[index].Product_ID__Manufacture_Country,
+              QuantityUnit: FilteredSuggestions[index].Product_ID__Quantity_Unit
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
@@ -558,7 +570,7 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
       </td>
       <td>
         <SuggestionsInput Type="text" Value={ItemsList[Index].Trademark}
-          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country)}
+          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_ID__Product_Name + " - " + suggestion.Product_ID__Trademark + " - " + suggestion.Product_ID__Manufacture_Country)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
             setSelectedItemIndex(Index);
@@ -579,11 +591,11 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
             let NewItemsList = [...ItemsList];
             NewItemsList[Index] = {
               ...NewItemsList[Index],
-              ProductName: FilteredSuggestions[index].Product_Name,
-              ProductID: FilteredSuggestions[index].Product_ID,
-              Trademark: FilteredSuggestions[index].Trademark,
-              ManufactureCountry: FilteredSuggestions[index].Manufacture_Country,
-              QuantityUnit: FilteredSuggestions[index].Quantity_Unit
+              ProductName: FilteredSuggestions[index].Product_ID__Product_Name,
+              ProductID: FilteredSuggestions[index].Product_ID__Product_ID,
+              Trademark: FilteredSuggestions[index].Product_ID__Trademark,
+              ManufactureCountry: FilteredSuggestions[index].Product_ID__Manufacture_Country,
+              QuantityUnit: FilteredSuggestions[index].Product_ID__Quantity_Unit
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
@@ -592,7 +604,7 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
       </td>
       <td>
         <SuggestionsInput Type="text" Value={ItemsList[Index].ManufactureCountry}
-          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country)}
+          Suggestions={FilteredSuggestions.map(suggestion => suggestion.Product_ID__Product_Name + " - " + suggestion.Product_ID__Trademark + " - " + suggestion.Product_ID__Manufacture_Country)}
           Disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
           onFocus={() => {
             setSelectedItemIndex(Index);
@@ -613,11 +625,11 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
             let NewItemsList = [...ItemsList];
             NewItemsList[Index] = {
               ...NewItemsList[Index],
-              ProductName: FilteredSuggestions[index].Product_Name,
-              ProductID: FilteredSuggestions[index].Product_ID,
-              Trademark: FilteredSuggestions[index].Trademark,
-              ManufactureCountry: FilteredSuggestions[index].Manufacture_Country,
-              QuantityUnit: FilteredSuggestions[index].Quantity_Unit
+              ProductName: FilteredSuggestions[index].Product_ID__Product_Name,
+              ProductID: FilteredSuggestions[index].Product_ID__Product_ID,
+              Trademark: FilteredSuggestions[index].Product_ID__Trademark,
+              ManufactureCountry: FilteredSuggestions[index].Product_ID__Manufacture_Country,
+              QuantityUnit: FilteredSuggestions[index].Product_ID__Quantity_Unit
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;

@@ -17,7 +17,7 @@ function QuantityAdjustmentsTabContent({ref}){
     Trademark: "",
     ManufactureCountry: "",
     OperationType: "",
-    StartDateTime:
+    FromDateTime:
       CurrentDateTime.getFullYear() +
       "-" +
       (CurrentDateTime.getMonth() + 1).toString().padStart(2, "0") +
@@ -25,7 +25,7 @@ function QuantityAdjustmentsTabContent({ref}){
       CurrentDateTime.getDate().toString().padStart(2, "0") +
       "T" +
       "00:00:00",
-    EndDateTime:
+    ToDateTime:
       CurrentDateTime.getFullYear() +
       "-" +
       (CurrentDateTime.getMonth() + 1).toString().padStart(2, "0") +
@@ -62,8 +62,8 @@ function QuantityAdjustmentsTabContent({ref}){
     if (SearchParam.Trademark){ RequestParams.Trademark = SearchParam.Trademark; }
     if (SearchParam.ManufactureCountry){ RequestParams.Manufacture_Country = SearchParam.ManufactureCountry; }
     if (SearchParam.OperationType){ RequestParams.Operation_Type = SearchParam.OperationType; }
-    if (SearchParam.StartDateTime){ RequestParams.StartDateTime = SearchParam.StartDateTime; }
-    if (SearchParam.EndDateTime){ RequestParams.EndDateTime = SearchParam.EndDateTime; }
+    if (SearchParam.FromDateTime){ RequestParams.FromDateTime = SearchParam.FromDateTime; }
+    if (SearchParam.ToDateTime){ RequestParams.ToDateTime = SearchParam.ToDateTime; }
     if (SearchParam.Quantity){ RequestParams.Quantity = SearchParam.Quantity; }
     if (SearchParam.Note){ RequestParams.Reason = SearchParam.Note; }
     await axios.get(API_URL, {params: RequestParams})
@@ -138,29 +138,29 @@ function AddOperationForm(){
   const { UpdateTab, setUpdateTab, setOpendForm } = useContext(QuantityAdjustmentsContext);
   const [ Submiting, setSubmiting ] = useState(false);
   const [ ProductInfo, setProductInfo ] = useState({
-    Product_ID: "",
-    Product_Name: "",
+    ProductID: "",
+    ProductName: "",
     Trademark: "",
-    Manufacture_Country: "",
+    ManufactureCountry: "",
     Quantity: "",
-    Quantity_Unit: ""
+    QuantityUnit: ""
   });
   const [Params, setParams] = useState({
-    OperationType: "Increase",
+    OperationType: "MoreThanPurchaseInvoice",
     Quantity: "",
     Note: ""
   });
   const [ Suggestions, setSuggestions ] = useState([]);
   const [ showProductSuggestions, setShowProductSuggestions ] = useState(false);
 
-  const suggestProduct = async (Field) => {
+  const suggestProduct = async (NewProductInfo, Field) => {
     var RequestParams = {
       RequestType: "SearchProducts",
       ProjectID: ProjectID,
       StoreID: StoreID,
-      Product_Name: ProductInfo.Product_Name,
-      Trademark: ProductInfo.Trademark,
-      Manufacture_Country: ProductInfo.Manufacture_Country
+      Product_ID__Product_Name: NewProductInfo.ProductName,
+      Product_ID__Trademark: NewProductInfo.Trademark,
+      Product_ID__Manufacture_Country: NewProductInfo.ManufactureCountry
     }
     await axios.get(API_URL, {params: RequestParams})
       .then((response) => {
@@ -179,7 +179,7 @@ function AddOperationForm(){
     var RequestParams = {
       RequestType:"AdjustProductQuantity",
       ProjectID:ProjectID, StoreID:StoreID,
-      ProductID: ProductInfo.Product_ID,
+      ProductID: ProductInfo.ProductID,
       OperationType: Params.OperationType,
       Quantity: Params.Quantity,
       Note: Params.Note,
@@ -200,14 +200,22 @@ function AddOperationForm(){
       });
   }
 
-  const SuggestionsSelect =  () => {
+  const SuggestionsSelect = () => {
     return <ul className="Drop-list">
       {Suggestions.map((suggestion) => (
-        <li key={suggestion.Product_ID} onClick={(event) => {
-          setProductInfo(suggestion);
+        <li key={suggestion.Product_ID} onClick={() => {
+          setProductInfo({
+            ...ProductInfo,
+            ProductID: suggestion.Product_ID__Product_ID,
+            ProductName: suggestion.Product_ID__Product_Name,
+            Trademark: suggestion.Product_ID__Trademark,
+            ManufactureCountry: suggestion.Product_ID__Manufacture_Country,
+            Quantity: suggestion.Quantity,
+            QuantityUnit: suggestion.Quantity_Unit
+          });
           setShowProductSuggestions(false);
         }}>
-        {suggestion.Product_Name + " - " + suggestion.Trademark + " - " + suggestion.Manufacture_Country}
+        {suggestion.Product_ID__Product_Name + " - " + suggestion.Product_ID__Trademark + " - " + suggestion.Product_ID__Manufacture_Country}
         </li>
       ))}
     </ul>
@@ -216,12 +224,6 @@ function AddOperationForm(){
   const checkQuantityValidation = () => {
     if ( Params.Quantity < 0 ){
       return false;
-    }
-    if (Params.OperationType === "Decrease" || Params.OperationType === "Damage" ||
-        Params.OperationType === "Lost") {
-      if (Number(Params.Quantity) > Number(ProductInfo.Quantity)) {
-        return false;
-      }
     }
     return true;
   }
@@ -236,13 +238,14 @@ function AddOperationForm(){
           <label>اسم المنتج</label>
           <div>
             <input type="text" onChange={(event) => {
-              suggestProduct("ProductNameField");
-              setProductInfo({
+              let NewProductInfo = {
                 ...ProductInfo,
-                Product_Name: event.target.value,
-              });
+                ProductName: event.target.value
+              };
+              setProductInfo(NewProductInfo);
+              suggestProduct(NewProductInfo, "ProductNameField");
             }}
-            value={ProductInfo.Product_Name} />
+            value={ProductInfo.ProductName} />
             {showProductSuggestions === "ProductNameField" && Suggestions.length > 0 &&
               <SuggestionsSelect/>
             }
@@ -253,11 +256,12 @@ function AddOperationForm(){
           <div>
             <input type="text" value={ProductInfo.Trademark}
               onChange={(event) => {
-                suggestProduct("TrademarkField");
-                setProductInfo({
+                let NewProductInfo = {
                   ...ProductInfo,
-                  Trademark: event.target.value,
-                });
+                  Trademark: event.target.value
+                };
+                setProductInfo(NewProductInfo);
+                suggestProduct(NewProductInfo, "TrademarkField");
               }}/>
             {showProductSuggestions === "TrademarkField" && Suggestions.length > 0 &&
               <SuggestionsSelect/>
@@ -267,13 +271,14 @@ function AddOperationForm(){
         <div>
           <label>البلد المصنع</label>
           <div>
-            <input type="text" value={ProductInfo.Manufacture_Country}
+            <input type="text" value={ProductInfo.ManufactureCountry}
               onChange={(event) => {
-                suggestProduct("ManufactureCountryField");
-                setProductInfo({
+                let NewProductInfo = {
                   ...ProductInfo,
-                  Manufacture_Country: event.target.value,
-                });
+                  ManufactureCountry: event.target.value,
+                };
+                setProductInfo(NewProductInfo);
+                suggestProduct(NewProductInfo, "ManufactureCountryField");
               }}/>
             {showProductSuggestions === "ManufactureCountryField" && Suggestions.length > 0 &&
               <SuggestionsSelect/>
@@ -282,24 +287,24 @@ function AddOperationForm(){
         </div>
         <div>
           <label>كود المنتج</label>
-          <input type="text" value={ProductInfo.Product_ID} disabled/>
+          <input type="text" value={ProductInfo.ProductID} disabled/>
         </div>
         <div>
           <label>نوع العملية</label>
           <select value={Params.OperationType} onChange={(event) => {setParams({...Params, OperationType:event.target.value})}}>
-            <option value="Increase">زيادة</option>
-            <option value="Decrease">نقص</option>
-            <option value="Damage">تالف</option>
+            <option value="MoreThanPurchaseInvoice">زيادة عن فاتورة الشراء</option>
+            <option value="LessThanPurchaseInvoice">نقص عن فاتورة الشراء</option>
+            <option value="Damaged">تالف</option>
+            <option value="Fixed">صلح</option>
             <option value="Lost">فاقد</option>
-            <option value="Found">مرتجع</option>
-            <option value="Maintenance">صيانة</option>
+            <option value="Found">وجد</option>
           </select>
         </div>
         <div>
           <label>الكمية</label>
           <input type="number" defaultValue={Params.Quantity}
             placeholder={ProductInfo.Quantity !== "" && 'الكمية الموجودة '+ProductInfo.Quantity}
-            className={ checkQuantityValidation() ? "" : "Invalid-field-data" }
+            min={0}
             onChange={(event) => {
               setParams({...Params, Quantity: event.target.value})
             }}/>
@@ -313,7 +318,7 @@ function AddOperationForm(){
           <button onClick={addOperation}
             disabled={
               Submiting ||
-              ProductInfo.Product_ID === "" || 
+              ProductInfo.ProductID === "" || 
               !checkQuantityValidation() ||
               Params.OperationType === "" ||
               Params.Quantity === ""
@@ -337,69 +342,69 @@ function SearchOperationsForm(){
   const TrademarkFieldRef = useRef();
   const ManufactureCountryFieldRef = useRef();
   const OperationTypeFieldRef = useRef();
-  const StartDateTimeFieldRef = useRef();
-  const EndDateTimeFieldRef = useRef();
+  const FromDateTimeFieldRef = useRef();
+  const ToDateTimeFieldRef = useRef();
   const QuantityFieldRef = useRef();
   const NoteFieldRef = useRef();
 
   const SearchAdjustmentOperations = () => {
-    let StartDateTime = StartDateTimeFieldRef.current.value;
-    let EndDateTime = EndDateTimeFieldRef.current.value;
+    let From_Date_Time = new Date(FromDateTimeFieldRef.current.value);
+    let To_Date_Time = new Date(ToDateTimeFieldRef.current.value);
     setSearchParam({
       OperationID: OperationIDFieldRef.current.value,
       ProductName: ProductNameField.current.value,
       Trademark: TrademarkFieldRef.current.value,
       ManufactureCountry: ManufactureCountryFieldRef.current.value,
       OperationType: OperationTypeFieldRef.current.value,
-      StartDateTime:
-        StartDateTime.getFullYear() +
+      FromDateTime:
+        From_Date_Time.getFullYear() +
         "-" +
-        (StartDateTime.getMonth() + 1)
+        (From_Date_Time.getMonth() + 1)
           .toString()
           .padStart(2, "0") +
         "-" +
-        StartDateTime
+        From_Date_Time
           .getDate()
           .toString()
           .padStart(2, "0") +
         "T" +
-        StartDateTime
+        From_Date_Time
           .getHours()
           .toString()
           .padStart(2, "0") +
         ":" +
-        StartDateTime
+        From_Date_Time
           .getMinutes()
           .toString()
           .padStart(2, "0") +
         ":" +
-        StartDateTime
+        From_Date_Time
           .getSeconds()
           .toString()
           .padStart(2, "0"),
-      EndDateTime: 
-        EndDateTime.getFullYear() +
+      ToDateTime: 
+        To_Date_Time.getFullYear() +
         "-" +
-        (EndDateTime.getMonth() + 1)
+        (To_Date_Time.getMonth() + 1)
           .toString()
           .padStart(2, "0") +
         "-" +
-        EndDateTime
+        To_Date_Time
           .getDate()
           .toString()
           .padStart(2, "0") +
         "T" +
-        EndDateTime
+        To_Date_Time
           .getHours()
           .toString()
           .padStart(2, "0") +
         ":" +
-        EndDateTime
+        To_Date_Time
           .getMinutes()
           .toString()
           .padStart(2, "0") +
         ":" +
-        EndDateTime
+        To_Date_Time
           .getSeconds()
           .toString()
           .padStart(2, "0"),
@@ -435,21 +440,22 @@ function SearchOperationsForm(){
         <div>
           <label>نوع العملية</label>
           <select value={SearchParam.OperationType} ref={OperationTypeFieldRef}>
-            <option value="Increase">زيادة</option>
-            <option value="Decrease">نقص</option>
-            <option value="Damage">تالف</option>
+            <option value="">الكل</option>
+            <option value="MoreThanPurchaseInvoice">زيادة عن فاتورة الشراء</option>
+            <option value="LessThanPurchaseInvoice">نقص عن فاتورة الشراء</option>
+            <option value="Damaged">تالف</option>
+            <option value="Fixed">صلح</option>
             <option value="Lost">فاقد</option>
-            <option value="Found">مرتجع</option>
-            <option value="Maintenance">صيانة</option>
+            <option value="Found">وجد</option>
           </select>
         </div>
         <div>
           <label>بداية التاريخ والوقت</label>
-          <input type="datetime-local" step="1" defaultValue={SearchParam.StartDateTime} ref={StartDateTimeFieldRef} />
+          <input type="datetime-local" step="1" defaultValue={SearchParam.FromDateTime} ref={FromDateTimeFieldRef} />
         </div>
         <div>
           <label>نهاية التاريخ والوقت</label>
-          <input type="datetime-local" step="1" defaultValue={SearchParam.EndDateTime} ref={EndDateTimeFieldRef} />
+          <input type="datetime-local" step="1" defaultValue={SearchParam.ToDateTime} ref={ToDateTimeFieldRef} />
         </div>
         <div>
           <label>الكمية</label>
@@ -476,26 +482,26 @@ function AdjustmentOperationsTableBody(){
     DeleteOperationButtonRef.current.disabled = false;
   }
   let OperationTypes = {
-    Increase: "زيادة",
-    Decrease: "نقص",
-    Damage: "تالف",
+    MoreThanPurchaseInvoice: "زيادة عن فاتورة الشراء",
+    LessThanPurchaseInvoice: "نقص عن فاتورة الشراء",
+    Damaged: "تالف",
+    Fixed: "صلح",
     Lost: "فاقد",
-    Found: "مرتجع",
-    Maintenance: "صيانة"
+    Found: "وجد"
   }
   return (
     OperationsList.map((operation, index) => (
       <tr onClick={(event)=>selectRow(event)}>
         <td>{index + 1}</td>
         <td>{operation.Operation_ID}</td>
-        <td>{operation.Product_Name}</td>
-        <td>{operation.Trademark}</td>
-        <td>{operation.Manufacture_Country}</td>
-        <td>{operation.Product_ID}</td>
+        <td>{operation.Product_ID__Product_Name}</td>
+        <td>{operation.Product_ID__Trademark}</td>
+        <td>{operation.Product_ID__Manufacture_Country}</td>
+        <td>{operation.Product_ID__Product_ID}</td>
         <td>{OperationTypes[operation.Operation_Type]}</td>
         <td>{operation.DateTime}</td>
         <td>{operation.Quantity}</td>
-        <td>{operation.Reason}</td>
+        <td>{operation.Notes}</td>
       </tr>
     ))
   );

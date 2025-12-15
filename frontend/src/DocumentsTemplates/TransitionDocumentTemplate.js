@@ -51,8 +51,8 @@ function TransitionDocumentTemplate(DocumentData) {
           <p>رقم المستند: ${DocumentData.Document_ID}</p>
           <p>تاريخ المستند: ${DocumentDate}</p>
           <p>وقت التسجيل: ${DocumentTime}</p>
-          <p>المخزن المصدر: ${DocumentData.Source_Store_Name}</p>
-          <p>المخزن الهدف: ${DocumentData.Destination_Store_Name}</p>
+          <p>المخزن المصدر: ${DocumentData.Source_Store_ID__Store_Name}</p>
+          <p>المخزن الهدف: ${DocumentData.Destination_Store_ID__Store_Name}</p>
         </div>
         <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
           <thead>
@@ -67,11 +67,11 @@ function TransitionDocumentTemplate(DocumentData) {
           <tbody>
             ${DocumentData.Items.map((item) => 
               `<tr>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.Product_Name}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.Trademark}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.Manufacture_Country}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.Product_ID}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.Quantity} ${item.Quantity_Unit}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.Product_ID__Product_Name}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.Product_ID__Trademark}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.Product_ID__Manufacture_Country}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.Product_ID__Product_ID}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.Quantity} ${item.Product_ID__Quantity_Unit}</td>
               </tr>`
             )}
           </tbody>

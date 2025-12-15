@@ -39,21 +39,21 @@ function ProductsTabContent({ref}){
 
   const fetchProducts = async () => {
     var RequestParams = {RequestType:"SearchProducts", ProjectID:ProjectID, StoreID:StoreID};
-    if (SearchParam.ProductID){ RequestParams.Product_ID = SearchParam.ProductID; }
-    if (SearchParam.ProductName){ RequestParams.Product_Name = SearchParam.ProductName; }
-    if (SearchParam.Trademark){ RequestParams.Trademark = SearchParam.Trademark; }
-    if (SearchParam.ManufactureCountry){ RequestParams.Manufacture_Country = SearchParam.ManufactureCountry; }
-    if (SearchParam.PurchasePrice){ RequestParams.Purchase_Price = SearchParam.PurchasePrice; }
-    if (SearchParam.WholesalePrice){ RequestParams.Wholesale_Price = SearchParam.WholesalePrice; }
-    if (SearchParam.RetailPrice){ RequestParams.Retail_Price = SearchParam.RetailPrice; }
-    if (SearchParam.ProductQuantity){ RequestParams.Product_Quantity = SearchParam.ProductQuantity; }
+    if (SearchParam.ProductID){ RequestParams.Product_ID__Product_ID = SearchParam.ProductID; }
+    if (SearchParam.ProductName){ RequestParams.Product_ID__Product_Name = SearchParam.ProductName; }
+    if (SearchParam.Trademark){ RequestParams.Product_ID__Trademark = SearchParam.Trademark; }
+    if (SearchParam.ManufactureCountry){ RequestParams.Product_ID__Manufacture_Country = SearchParam.ManufactureCountry; }
+    if (SearchParam.PurchasePrice){ RequestParams.Product_ID__Purchase_Price = SearchParam.PurchasePrice; }
+    if (SearchParam.WholesalePrice){ RequestParams.Product_ID__Wholesale_Price = SearchParam.WholesalePrice; }
+    if (SearchParam.RetailPrice){ RequestParams.Product_ID__Retail_Price = SearchParam.RetailPrice; }
+    if (SearchParam.ProductQuantity){ RequestParams.Quantity = SearchParam.ProductQuantity; }
     await axios.get(API_URL, {params: RequestParams})
       .then(
         (response)=>{
           if (!response.data.StatusCode){
             setProductsList(response.data.Data.sort((a, b) => {
-              if (a.Product_Order < b.Product_Order) return -1;
-              if (a.Product_Order > b.Product_Order) return 1;
+              if (a.Product_ID__Product_Order < b.Product_ID__Product_Order) return -1;
+              if (a.Product_ID__Product_Order > b.Product_ID__Product_Order) return 1;
               return 0;
             }));
           }
@@ -111,7 +111,6 @@ function AddProductForm(){
   const AddProductWholesalePriceRef = useRef();
   const AddProductRetailPriceRef = useRef();
   const AddProductQuantityUnitRef = useRef();
-  const AddProductPartialQuantityPrecisionRef = useRef();
   const AddProduct = (event) => {
     var RequestParams = {
       RequestType:"AddProduct",
@@ -124,7 +123,6 @@ function AddProductForm(){
       WholesalePrice: AddProductWholesalePriceRef.current.value,
       RetailPrice: AddProductRetailPriceRef.current.value,
       QuantityUnit: AddProductQuantityUnitRef.current.value,
-      PartialQuantityPrecision: AddProductPartialQuantityPrecisionRef.current.value
     };
     if (SelectedRow.current){
       RequestParams.ProductOrder = ProductsList[SelectedRow.current.rowIndex - 1].Product_Order + 1;
@@ -176,10 +174,6 @@ function AddProductForm(){
           <input type="text" ref={AddProductQuantityUnitRef}></input>
         </div>
         <div>
-          <label>عدد الخانات العشرية</label>
-          <input type="number" ref={AddProductPartialQuantityPrecisionRef}></input>
-        </div>
-        <div>
           <button onClick={(event) => AddProduct(event)}>إضافة</button>
         </div>
       </div>
@@ -196,7 +190,7 @@ function SearchProductsForm(){
   const SearchProductsPurchasePriceRef = useRef(null);
   const SearchProductsWholesalePriceRef = useRef(null);
   const SearchProductsRetailPriceRef = useRef(null);
-  const SearchProducts = (event) => {
+  const SearchProducts = () => {
     setSearchParam({
       ProductID: SearchProductsIdRef.current.value,
       ProductName: SearchProductsNameRef.current.value,
@@ -212,7 +206,7 @@ function SearchProductsForm(){
     <div className="Form-container">
       <div className="Form">
         <div>
-          <button className='Form-close' onClick={(event) => setOpendForm("")}>X</button>
+          <button className='Form-close' onClick={() => setOpendForm("")}>X</button>
         </div>
         <div>
           <label>الرقم التعريفي</label>
@@ -261,8 +255,7 @@ function EditProductForm(){
   const EditProductWholesalePrice = useRef(null);
   const EditProductRetailPrice = useRef(null);
   const EditProductQuantityUnit = useRef(null);
-  const EditProductPartialQuantityPrecision = useRef(null);
-  const EditProduct = (event) => {
+  const EditProduct = () => {
     var RequestParams = {RequestType:"EditProductInfo",
       ProjectID:ProjectID,
       ProductID:EditProductID.current.value,
@@ -273,7 +266,6 @@ function EditProductForm(){
       WholesalePrice:EditProductWholesalePrice.current.value,
       RetailPrice:EditProductRetailPrice.current.value,
       QuantityUnit:EditProductQuantityUnit.current.value,
-      PartialQuantityPrecision:EditProductPartialQuantityPrecision.current.value
     };
     axios.get(API_URL, {params: RequestParams})
       .then((response)=>{
@@ -289,15 +281,14 @@ function EditProductForm(){
   useEffect(() => {
     if (SelectedRow){
       let RowIndex = SelectedRow.current.rowIndex - 1;
-      EditProductID.current.value = ProductsList[RowIndex].Product_ID;
-      EditProductName.current.value = ProductsList[RowIndex].Product_Name;
-      EditProductTrademark.current.value = ProductsList[RowIndex].Trademark;
-      EditProductManufactureCountry.current.value = ProductsList[RowIndex].Manufacture_Country;
-      EditProductPurchasePrice.current.value = ProductsList[RowIndex].Purchase_Price;
-      EditProductWholesalePrice.current.value = ProductsList[RowIndex].Wholesale_Price;
-      EditProductRetailPrice.current.value = ProductsList[RowIndex].Retail_Price;
-      EditProductQuantityUnit.current.value = ProductsList[RowIndex].Quantity_Unit;
-      EditProductPartialQuantityPrecision.current.value = ProductsList[RowIndex].Partial_Quantity_Precision;
+      EditProductID.current.value = ProductsList[RowIndex].Product_ID__Product_ID;
+      EditProductName.current.value = ProductsList[RowIndex].Product_ID__Product_Name;
+      EditProductTrademark.current.value = ProductsList[RowIndex].Product_ID__Trademark;
+      EditProductManufactureCountry.current.value = ProductsList[RowIndex].Product_ID__Manufacture_Country;
+      EditProductPurchasePrice.current.value = ProductsList[RowIndex].Product_ID__Purchase_Price;
+      EditProductWholesalePrice.current.value = ProductsList[RowIndex].Product_ID__Wholesale_Price;
+      EditProductRetailPrice.current.value = ProductsList[RowIndex].Product_ID__Retail_Price;
+      EditProductQuantityUnit.current.value = ProductsList[RowIndex].Product_ID__Quantity_Unit;
     }
   })
 
@@ -305,7 +296,7 @@ function EditProductForm(){
     <div className="Form-container" ref={EditProductFormRef}>
       <div className="Form">
         <div>
-          <button className='Form-close' onClick={(event) => setOpendForm("")}>X</button>
+          <button className='Form-close' onClick={() => setOpendForm("")}>X</button>
         </div>
         <div>
           <label>الرقم التعريفي</label>
@@ -340,10 +331,6 @@ function EditProductForm(){
           <input type="text" ref={EditProductQuantityUnit} />
         </div>
         <div>
-          <label>عدد الخانات العشرية</label>
-          <input type="number" ref={EditProductPartialQuantityPrecision} />
-        </div>
-        <div>
           <button onClick={(event) => EditProduct(event)}>تعديل</button>
         </div>
       </div>
@@ -365,14 +352,14 @@ function ProductsTableBody(){
     ProductsList.map((product, index) => (
       <tr onClick={(event)=>selectRow(event)}>
         <td>{index + 1}</td>
-        <td>{product.Product_ID}</td>
-        <td>{product.Product_Name}</td>
-        <td>{product.Trademark}</td>
-        <td>{product.Manufacture_Country}</td>
-        <td>{product.Purchase_Price}</td>
-        <td>{product.Wholesale_Price}</td>
-        <td>{product.Retail_Price}</td>
-        <td>{product.Quantity+" "+product.Quantity_Unit}</td>
+        <td>{product.Product_ID__Product_ID}</td>
+        <td>{product.Product_ID__Product_Name}</td>
+        <td>{product.Product_ID__Trademark}</td>
+        <td>{product.Product_ID__Manufacture_Country}</td>
+        <td>{product.Product_ID__Purchase_Price}</td>
+        <td>{product.Product_ID__Wholesale_Price}</td>
+        <td>{product.Product_ID__Retail_Price}</td>
+        <td>{product.Quantity+" "+product.Product_ID__Quantity_Unit}</td>
       </tr>
     ))
   );

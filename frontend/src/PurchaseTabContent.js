@@ -15,7 +15,7 @@ function PurchaseTabContent(){
   const [ SearchParam, setSearchParam ] = useState({
     InvoiceID: "",
     SellerName: "",
-    StartDateTime:
+    FromDateTime:
       CurrentDateTime.getFullYear() +
       "-" +
       (CurrentDateTime.getMonth() + 1).toString().padStart(2, "0") +
@@ -23,7 +23,7 @@ function PurchaseTabContent(){
       CurrentDateTime.getDate().toString().padStart(2, "0") +
       "T" +
       "00:00:00",
-    EndDateTime:
+    ToDateTime:
       CurrentDateTime.getFullYear() +
       "-" +
       (CurrentDateTime.getMonth() + 1).toString().padStart(2, "0") +
@@ -61,8 +61,8 @@ function PurchaseTabContent(){
     };
     if (SearchParam.InvoiceID){ RequestParams.Invoice_ID = SearchParam.InvoiceID; }
     if (SearchParam.SellerName){ RequestParams.Seller_Name = SearchParam.SellerName; }
-    if (SearchParam.StartDateTime){ RequestParams.StartDateTime = SearchParam.StartDateTime; }
-    if (SearchParam.EndDateTime){ RequestParams.EndDateTime = SearchParam.EndDateTime; }
+    if (SearchParam.FromDateTime){ RequestParams.FromDateTime = SearchParam.FromDateTime; }
+    if (SearchParam.ToDateTime){ RequestParams.ToDateTime = SearchParam.ToDateTime; }
     if (SearchParam.TotalPrice){ RequestParams.Total_Price = SearchParam.TotalPrice; }
     if (SearchParam.Paid){ RequestParams.Paid = SearchParam.Paid; }
     await axios.get(API_URL, {params: RequestParams})
@@ -331,66 +331,66 @@ function SearchInvoicesForm(){
   const { SearchParam, setSearchParam, UpdateTab, setUpdateTab, setOpendForm } = useContext(PurchaseTabContext);
   const InvoiceIDFieldRef = useRef();
   const SellerNameFieldRef = useRef();
-  const StartDateTimeFieldRef = useRef();
-  const EndDateTimeFieldRef = useRef();
+  const FromDateTimeFieldRef = useRef();
+  const ToDateTimeFieldRef = useRef();
   const TotalPriceFieldRef = useRef();
   const PaidFieldRef = useRef();
 
   const SearchInvoices = () => {
-    let StartDateTime = new Date(StartDateTimeFieldRef.current.value);
-    let EndDateTime = new Date(EndDateTimeFieldRef.current.value);
+    let FromDateTime = new Date(FromDateTimeFieldRef.current.value);
+    let ToDateTime = new Date(ToDateTimeFieldRef.current.value);
     setSearchParam({
       InvoiceID: InvoiceIDFieldRef.current.value,
       SellerName: SellerNameFieldRef.current.value,
-      StartDateTime:
-        StartDateTime.getFullYear() +
+      FromDateTime:
+        FromDateTime.getFullYear() +
         "-" +
-        (StartDateTime.getMonth() + 1)
+        (FromDateTime.getMonth() + 1)
           .toString()
           .padStart(2, "0") +
         "-" +
-        StartDateTime
+        FromDateTime
           .getDate()
           .toString()
           .padStart(2, "0") +
         "T" +
-        StartDateTime
+        FromDateTime
           .getHours()
           .toString()
           .padStart(2, "0") +
         ":" +
-        StartDateTime
+        FromDateTime
           .getMinutes()
           .toString()
           .padStart(2, "0") +
         ":" +
-        StartDateTime
+        FromDateTime
           .getSeconds()
           .toString()
           .padStart(2, "0"),
-      EndDateTime: 
-        EndDateTime.getFullYear() +
+      ToDateTime: 
+        ToDateTime.getFullYear() +
         "-" +
-        (EndDateTime.getMonth() + 1)
+        (ToDateTime.getMonth() + 1)
           .toString()
           .padStart(2, "0") +
         "-" +
-        EndDateTime
+        ToDateTime
           .getDate()
           .toString()
           .padStart(2, "0") +
         "T" +
-        EndDateTime
+        ToDateTime
           .getHours()
           .toString()
           .padStart(2, "0") +
         ":" +
-        EndDateTime
+        ToDateTime
           .getMinutes()
           .toString()
           .padStart(2, "0") +
         ":" +
-        EndDateTime
+        ToDateTime
           .getSeconds()
           .toString()
           .padStart(2, "0"),
@@ -416,11 +416,11 @@ function SearchInvoicesForm(){
         </div>
         <div>
           <label>بداية الوقت والتاريخ</label>
-          <input type="datetime-local" step="1" defaultValue={SearchParam.StartDateTime} ref={StartDateTimeFieldRef} />
+          <input type="datetime-local" step="1" defaultValue={SearchParam.FromDateTime} ref={FromDateTimeFieldRef} />
         </div>
         <div>
           <label>نهاية الوقت والتاريخ</label>
-          <input type="datetime-local" step="1" defaultValue={SearchParam.EndDateTime} ref={EndDateTimeFieldRef} />
+          <input type="datetime-local" step="1" defaultValue={SearchParam.ToDateTime} ref={ToDateTimeFieldRef} />
         </div>
         <div>
           <label>إجمالي المبلغ</label>
@@ -485,12 +485,12 @@ function EditInvoiceForm(){
           }));
           response.data.Data.Items.forEach((item, index) => {
             ItemsList[index] = {
-              ProductName: item.Product_Name,
-              ProductID: item.Product_ID,
-              Trademark: item.Trademark,
-              ManufactureCountry: item.Manufacture_Country,
+              ProductName: item.Product_ID__Product_Name,
+              ProductID: item.Product_ID__Product_ID,
+              Trademark: item.Product_ID__Trademark,
+              ManufactureCountry: item.Product_ID__Manufacture_Country,
               Quantity: item.Quantity,
-              QuantityUnit: item.Quantity_Unit,
+              QuantityUnit: item.Product_ID__Quantity_Unit,
               UnitPrice: item.Unit_Price,
               Price: item.Quantity * item.Unit_Price
             }
@@ -522,6 +522,7 @@ function EditInvoiceForm(){
       StoreID: StoreID,
     }
     let ProductIDs = ItemsList.map((item) => item.ProductID);
+    console.log(ProductIDs);
     for (let i = 0; i < ProductIDs.length; i++){
       RequestParams[`ProductsIDs[${i}]`] = ProductIDs[i] ? ProductIDs[i] : undefined;
     }
@@ -716,7 +717,7 @@ function PurchaseInvoicesTableBody(){
         <td>{invoice.DateTime}</td>
         <td>{invoice.Total_Price}</td>
         <td>{invoice.Paid}</td>
-        <td>{invoice.Deducted_From_Account}</td>
+        <td>{invoice.Deducted_From_Debt_Account}</td>
       </tr>
     ))
   );

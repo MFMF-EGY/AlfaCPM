@@ -68,11 +68,11 @@ function SellingInvoiceTemplate(InvoiceData) {
           <tbody>
             ${InvoiceData.Items.map((item) => 
               `<tr>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.Product_Name}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.Trademark}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.Manufacture_Country}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.Product_ID}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${item.Quantity} ${item.Quantity_Unit}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.Product_ID__Product_Name}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.Product_ID__Trademark}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.Product_ID__Manufacture_Country}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.Product_ID__Product_ID}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${item.Quantity} ${item.Product_ID__Quantity_Unit}</td>
                 <td style="border: 1px solid #ddd; padding: 8px;">${item.Unit_Price}</td>
                 <td style="border: 1px solid #ddd; padding: 8px;">${item.Quantity * item.Unit_Price}</td>
               </tr>`
@@ -92,7 +92,7 @@ function SellingInvoiceTemplate(InvoiceData) {
               <tr>
                 <td style="border: 1px solid #ddd; padding: 8px;">${InvoiceData.Total_Price}</td>
                 <td style="border: 1px solid #ddd; padding: 8px;">${InvoiceData.Paid}</td>
-                <td style="border: 1px solid #ddd; padding: 8px;">${InvoiceData.Transferred_To_Account}</td>
+                <td style="border: 1px solid #ddd; padding: 8px;">${InvoiceData.Transferred_To_Debt_Account}</td>
               </tr>
             </tbody>
           </table>
