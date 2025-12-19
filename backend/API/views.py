@@ -33,6 +33,13 @@ connections.databases["MainDB"] = {
     'CONN_HEALTH_CHECKS': False,
     'CONN_MAX_AGE': 0,
     'ATOMIC_REQUESTS': False,
+    'TEST': {
+        'NAME': 'MainDB',
+        'MIRROR': None,
+        'CHARSET': None,
+        'COLLATION': None,
+        'MIGRATE': False,
+    },
 }
 ProjectsDBsConnectors = {}
 MainDBCursor = connections["MainDB"].cursor()
@@ -50,22 +57,29 @@ def SetupProjectsDBsConnectors():
     MainDBCursor.execute("SELECT Project_ID FROM Projects_Table;")
     ProjectsIDs = MainDBCursor.fetchall()
     for ProjectID in ProjectsIDs:
-        connections.databases[f"Project{ProjectID[0]}"] = {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': f"Project{ProjectID[0]}",
-            'HOST': 'localhost',
-            'PORT': '3306',
-            'USER': 'alfacpm',
-            'PASSWORD': '000600',
-            'OPTIONS': {
-                'charset': 'utf8mb4'
-            },
-            'AUTOCOMMIT': False,
-            'TIME_ZONE': settings.TIME_ZONE,
-            'CONN_HEALTH_CHECKS': False,
-            'CONN_MAX_AGE': 0,
-            'ATOMIC_REQUESTS': False,
-        }
+        # connections.databases[f"Project{ProjectID[0]}"] = {
+        #     'ENGINE': 'django.db.backends.mysql',
+        #     'NAME': f"Project{ProjectID[0]}",
+        #     'HOST': 'localhost',
+        #     'PORT': '3306',
+        #     'USER': 'alfacpm',
+        #     'PASSWORD': '000600',
+        #     'OPTIONS': {
+        #         'charset': 'utf8mb4'
+        #     },
+        #     'AUTOCOMMIT': False,
+        #     'TIME_ZONE': settings.TIME_ZONE,
+        #     'CONN_HEALTH_CHECKS': False,
+        #     'CONN_MAX_AGE': 0,
+        #     'ATOMIC_REQUESTS': False,
+        #     'TEST': {
+        #         'NAME': f"Project{ProjectID[0]}",
+        #         'MIRROR': None,
+        #         'CHARSET': None,
+        #         'COLLATION': None,
+        #         'MIGRATE': False,
+        #     },
+        # }
         ProjectsDBsConnectors[ProjectID[0]] = 1
 
 SetupProjectsDBsConnectors()
@@ -101,8 +115,13 @@ def isintstr(value):
 
 
 class ProcessRequest:
-    def CreateProject(RequestList):
+    def CreateProject(RequestList, Test = False):
         ProjectName, ProjectDescription = RequestList["ProjectName"], RequestList["ProjectDescription"]
+        if len(ProjectName) == 0:
+            return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ProjectName"}
+        # This name is used for testing
+        if ProjectName == "foo" and not Test:
+            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"ProjectName"}
         # Check if project has unique name
         MainDBCursor.execute(f"SELECT Project_Name FROM Projects_Table WHERE Project_Name = '{RequestList["ProjectName"]}'");
         if MainDBCursor.fetchone() is not None:
@@ -128,6 +147,13 @@ class ProcessRequest:
             'CONN_HEALTH_CHECKS': False,
             'CONN_MAX_AGE': 0,
             'ATOMIC_REQUESTS': False,
+            'TEST': {
+                'NAME': f"Project{ProjectID}",
+                'MIRROR': None,
+                'CHARSET': None,
+                'COLLATION': None,
+                'MIGRATE': False,
+            },
         }
         NewDBCursor = connections[f"Project{ProjectID}"].cursor()
         with connections[f"Project{ProjectID}"].schema_editor() as schema_editor:
@@ -140,7 +166,10 @@ class ProcessRequest:
         connections["MainDB"].commit()
         MainDBCursor.execute("USE MainDB;")
         SetupProjectsDBsConnectors()
+        if Test:
+            return ProjectID
         return {"StatusCode":0,"Data":"OK"}
+    
     def GetProjects(RequestList):
         MainDBCursor.execute("SELECT * FROM Projects_Table;")
         return {"StatusCode":0,"Data":MainDBCursor.dictfetchall()}
@@ -541,7 +570,6 @@ class ProcessRequest:
         del RequestList["ProjectID"]
         del RequestList["StoreID"]
         FilterArguments = FilterArguments | {f+"__contains": RequestList[f] for f in RequestList.keys()}
-        print(FilterArguments)
         products_list = Product_Quantity_Table.objects.using(DBName).select_related('Product_ID').filter(**FilterArguments).values(
             'Product_ID__Product_ID', 'Product_ID__Product_Name', 'Product_ID__Trademark',
             'Product_ID__Manufacture_Country', 'Product_ID__Quantity_Unit', 'Product_ID__Purchase_Price',
@@ -1354,7 +1382,10 @@ def SanitizeRequest(RequestList):
 def StartRequestProcessing(Request):
     RequestList = Request.GET.dict()
     RequestList = SanitizeRequest(RequestList)
-    RequestType = RequestList["RequestType"]
+    try:
+        RequestType = RequestList["RequestType"]
+    except:
+        return {"StatusCode": ErrorCodes.MissingVariables,"Variable":"RequestType"}
     match RequestType:
         case "CreateProject":
             Response = CheckValidation.CreateProject(RequestList)

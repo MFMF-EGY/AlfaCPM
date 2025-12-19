@@ -23,10 +23,11 @@ check_installed_python_package() {
 }
 
 check_dependencies() {
-  check_installed mysql
+  check_installed mariadb
   check_installed node
   check_installed npm
   check_installed python3
+  check_installed pytest
   if [ $exit_code -eq 0 ]; then
     check_installed_python_package django
   fi
@@ -40,19 +41,24 @@ if [ $exit_code -ne 0 ]; then
 fi
 echo "All dependencies are installed."
 
-# Ensure mysql is running.
-echo "Running MySQL service..."
-if ! systemctl is-active --quiet mysql; then
-  sudo systemctl start mysql
+# Ensure mariadb is running.
+echo "Running MariaDB service..."
+if ! systemctl is-active --quiet mariadb; then
+  sudo systemctl start mariadb
 fi
-if ! systemctl is-active --quiet mysql; then
-  echo "Failed to start MySQL service." >&2
+if ! systemctl is-active --quiet mariadb; then
+  echo "Failed to start MariaDB service." >&2
   exit 1
 fi
-echo "MySQL service is running."
+echo "MariaDB service is running."
 echo "Setting up database..."
+# Ensure alfacpm user exists and has all privileges.
+sudo mariadb -u root -e "
+  CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_password';
+  GRANT ALL PRIVILEGES ON *.* TO '$db_user'@'localhost' WITH GRANT OPTION;
+  FLUSH PRIVILEGES;"
 # Ensure MainDB database exists.
-mysql -u $db_user -p"$db_password" -e "
+mariadb -u $db_user -p"$db_password" -e "
   CREATE DATABASE IF NOT EXISTS MainDB;
   USE MainDB;
   CREATE TABLE IF NOT EXISTS Projects_Table (
