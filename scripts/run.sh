@@ -28,6 +28,7 @@ check_dependencies() {
   check_installed npm
   check_installed python3
   check_installed pytest
+  check_installed tmux
   if [ $exit_code -eq 0 ]; then
     check_installed_python_package django
   fi
@@ -53,7 +54,7 @@ fi
 echo "MariaDB service is running."
 echo "Setting up database..."
 # Ensure alfacpm user exists and has all privileges.
-sudo mariadb -u root -e "
+mariadb -u $db_user -p"$db_password" -e "
   CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_password';
   GRANT ALL PRIVILEGES ON *.* TO '$db_user'@'localhost' WITH GRANT OPTION;
   FLUSH PRIVILEGES;"
@@ -67,18 +68,27 @@ mariadb -u $db_user -p"$db_password" -e "
     Project_Description TEXT,
     PRIMARY KEY (Project_ID)
   );"
-
 echo "Database setup completed successfully."
-echo "Starting backend service..."
-# Start the Django backend server in the background.
-python3 ../backend/manage.py runserver 0.0.0.0:8000&
-# Start the Node.js frontend server in the background.
-echo "Starting frontend service..."
-npm --prefix ../frontend start&
 
-# if the script is run as run.sh, it will wait for all background processes to finish
-# and then exit
-echo "Running all services. Press Ctrl+C to stop."
-trap 'echo "Stopping services..."; pids=$(jobs -p); if [ -n "$pids" ]; then kill -- $pids 2>/dev/null || kill -9 -- $pids 2>/dev/null; fi; exit' SIGINT SIGTERM
-wait
-echo "All services have been stopped."
+
+tmux new-session -d -s alfacpm
+# Split the tmux window into two panes.
+tmux split-window -h -t alfacpm
+# Start the backend and frontend services in tmux panes.
+tmux send-keys -t alfacpm:0.0 "echo 'Starting backend server...' && python3 ../backend/manage.py runserver 0.0.0.0:8000" Enter
+tmux send-keys -t alfacpm:0.1 "echo 'Starting frontend server...' && cd ../frontend && npm start" Enter
+tmux attach -t alfacpm
+
+# TODO: Uncomment the following lines and add option to run them as services.
+# # Start the Django backend server in tmux.
+# python3 ../backend/manage.py runserver 0.0.0.0:8000&
+# # Start the Node.js frontend server in the background.
+# echo "Starting frontend service..."
+# npm --prefix ../frontend start&
+
+# # if the script is run as run.sh, it will wait for all background processes to finish
+# # and then exit
+# echo "Running all services. Press Ctrl+C to stop."
+# trap 'echo "Stopping services..."; pids=$(jobs -p); if [ -n "$pids" ]; then kill -- $pids 2>/dev/null || kill -9 -- $pids 2>/dev/null; fi; exit' SIGINT SIGTERM
+# wait
+# echo "All services have been stopped."
