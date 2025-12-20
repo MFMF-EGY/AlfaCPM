@@ -3,7 +3,7 @@ from django.http import JsonResponse
 from django.db import connections
 from django.conf import settings
 from django.db.backends.mysql.base import CursorWrapper
-from django.db.models import Q
+from django.db.models import Max, Q, F
 import os
 import subprocess
 from datetime import datetime
@@ -57,29 +57,29 @@ def SetupProjectsDBsConnectors():
     MainDBCursor.execute("SELECT Project_ID FROM Projects_Table;")
     ProjectsIDs = MainDBCursor.fetchall()
     for ProjectID in ProjectsIDs:
-        # connections.databases[f"Project{ProjectID[0]}"] = {
-        #     'ENGINE': 'django.db.backends.mysql',
-        #     'NAME': f"Project{ProjectID[0]}",
-        #     'HOST': 'localhost',
-        #     'PORT': '3306',
-        #     'USER': 'alfacpm',
-        #     'PASSWORD': '000600',
-        #     'OPTIONS': {
-        #         'charset': 'utf8mb4'
-        #     },
-        #     'AUTOCOMMIT': False,
-        #     'TIME_ZONE': settings.TIME_ZONE,
-        #     'CONN_HEALTH_CHECKS': False,
-        #     'CONN_MAX_AGE': 0,
-        #     'ATOMIC_REQUESTS': False,
-        #     'TEST': {
-        #         'NAME': f"Project{ProjectID[0]}",
-        #         'MIRROR': None,
-        #         'CHARSET': None,
-        #         'COLLATION': None,
-        #         'MIGRATE': False,
-        #     },
-        # }
+        connections.databases[f"Project{ProjectID[0]}"] = {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': f"Project{ProjectID[0]}",
+            'HOST': 'localhost',
+            'PORT': '3306',
+            'USER': 'alfacpm',
+            'PASSWORD': '000600',
+            'OPTIONS': {
+                'charset': 'utf8mb4'
+            },
+            'AUTOCOMMIT': False,
+            'TIME_ZONE': settings.TIME_ZONE,
+            'CONN_HEALTH_CHECKS': False,
+            'CONN_MAX_AGE': 0,
+            'ATOMIC_REQUESTS': False,
+            'TEST': {
+                'NAME': f"Project{ProjectID[0]}",
+                'MIRROR': None,
+                'CHARSET': None,
+                'COLLATION': None,
+                'MIGRATE': False,
+            },
+        }
         ProjectsDBsConnectors[ProjectID[0]] = 1
 
 SetupProjectsDBsConnectors()
@@ -115,6 +115,7 @@ def isintstr(value):
 
 
 class ProcessRequest:
+    @staticmethod
     def CreateProject(RequestList, Test = False):
         ProjectName, ProjectDescription = RequestList["ProjectName"], RequestList["ProjectDescription"]
         if len(ProjectName) == 0:
@@ -165,14 +166,17 @@ class ProcessRequest:
         NewDBCursor.close()
         connections["MainDB"].commit()
         MainDBCursor.execute("USE MainDB;")
-        SetupProjectsDBsConnectors()
+        ProjectsDBsConnectors[ProjectID] = 1
         if Test:
             return ProjectID
         return {"StatusCode":0,"Data":"OK"}
-    
-    def GetProjects(RequestList):
+
+    @staticmethod
+    def GetProjects():
         MainDBCursor.execute("SELECT * FROM Projects_Table;")
         return {"StatusCode":0,"Data":MainDBCursor.dictfetchall()}
+    
+    @staticmethod
     def CreateAccount(DBName, RequestList):
         PersonName = RequestList["PersonName"]
         new_debt_account = Debt_Accounts(Person_Name=PersonName, Debt_Amount=0)
@@ -180,6 +184,7 @@ class ProcessRequest:
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
 
+    @staticmethod
     def AddStore(DBName , RequestList):
         StoreName, StoreAddress = RequestList["StoreName"], RequestList["StoreAddress"]
         ProductIDs = list(Products_Table.objects.using(DBName).all().values("Product_ID"))
@@ -190,10 +195,12 @@ class ProcessRequest:
             new_product_quantity.save(using=DBName)
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
-    
+
+    @staticmethod
     def GetStores(DBName):
         return {"StatusCode":0,"Data":list(Stores_Table.objects.using(DBName).all().values())}
-    
+
+    @staticmethod
     def AddProduct(DBName, RequestList):
         ProductName, Trademark, ManufactureCountry, PurchasePrice, WholesalePrice, RetailPrice, QuantityUnit = (
             RequestList["ProductName"], RequestList["Trademark"],
@@ -205,7 +212,7 @@ class ProcessRequest:
         StoresIDs = list(Stores_Table.objects.using(DBName).all())
         if RequestList.get("ProductOrder") is None:
             new_product = Products_Table(
-                Product_Order = Products_Table.objects.using(DBName).largest('Product_Order').Product_Order + 1 if Products_Table.objects.using(DBName).exists() else 1,
+                Product_Order = Products_Table.objects.using(DBName).aggregate(Max('Product_Order'))['Product_Order__max'] + 1 if Products_Table.objects.using(DBName).exists() else 1,
                 Product_Name=ProductName, Trademark=Trademark, Manufacture_Country=ManufactureCountry,
                 Purchase_Price=PurchasePrice, Wholesale_Price=WholesalePrice, Retail_Price=RetailPrice,
                 Quantity_Unit=QuantityUnit
@@ -213,7 +220,7 @@ class ProcessRequest:
             new_product.save(using=DBName)
         else:
             Order = RequestList["ProductOrder"]
-            Products_Table.objects.using(DBName).filter(Product_Order__gte=Order).update(Product_Order=models.F('Product_Order') + 1)
+            Products_Table.objects.using(DBName).filter(Product_Order__gte=Order).update(Product_Order=F('Product_Order') + 1)
             new_product = Products_Table(
                 Product_Order = Order,
                 Product_Name=ProductName, Trademark=Trademark, Manufacture_Country=ManufactureCountry,
@@ -230,7 +237,8 @@ class ProcessRequest:
             new_product_quantity.save(using=DBName)
         connections[DBName].commit()
         return {"StatusCode": 0,"Data": "OK"}
-    
+
+    @staticmethod
     def EditProductInfo(DBName, RequestList):
         ProductID, ProductName, Trademark, ManufactureCountry, PurchasePrice, WholesalePrice, RetailPrice, QuantityUnit = (
             RequestList["ProductID"], RequestList["ProductName"], RequestList["Trademark"],
@@ -248,7 +256,8 @@ class ProcessRequest:
         product.save(using=DBName)
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
-    
+
+    @staticmethod
     def GetProductInfo(DBName, RequestList):
         ProductID = RequestList['ProductID']
         product = Products_Table.objects.using(DBName).get(Product_ID=ProductID)
@@ -257,6 +266,8 @@ class ProcessRequest:
         del ProductInfo['_state']
         return {"StatusCode": 0,"Data": ProductInfo}
     
+    
+    @staticmethod
     def GetProductsQuantities(DBName, RequestList, ProductsIDs, store):
         #Cursor.execute(f"SELECT Quantity FROM Product_Quantity_Table WHERE Store_ID={StoreID} AND Product_ID IN ({','.join(map(str, ProductsIDs))});")
         #ProductQuantities = Cursor.fetchall()
@@ -264,6 +275,7 @@ class ProcessRequest:
         ProductsQuantities = Product_Quantity_Table.objects.using(DBName).filter(Store_ID=store, Product_ID__in=ProductsIDs).values('Product_ID', 'Quantity')
         return {"StatusCode":0,"Data":list(ProductsQuantities)}
 
+    @staticmethod
     def Sell(DBName, RequestList, Orders, RequiredAmount, store):
         ClientName, Paid = RequestList["ClientName"], RequestList["Paid"]
         InsufficentQuantityProducts = []
@@ -297,6 +309,7 @@ class ProcessRequest:
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
     
+    @staticmethod
     def Purchase(DBName, RequestList, Orders, TotalPrice, store):
         SellerName, Paid = RequestList["SellerName"], RequestList["Paid"]
         purchase_invoice = Purchase_Invoices(
@@ -322,13 +335,15 @@ class ProcessRequest:
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
 
+    @staticmethod
     def EditSellingInvoice(DBName, selling_invoice: Selling_Invoices, RequestList, Orders, TotalPrice):
         ClientName, Paid = RequestList["ClientName"], RequestList["Paid"]
         # Return invoice items quantities to the store and delete those items.
         selling_invoice_items = Selling_Items.objects.using(DBName).filter(Invoice_ID=selling_invoice.Invoice_ID)
         for Item in selling_invoice_items:
-            product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=selling_invoice.Store_ID, Product_ID=Item.Product_ID_id)
-            product_quantity.Quantity = Decimal(product_quantity.Quantity) + Decimal(Item.Quantity)
+            product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=selling_invoice.Store_ID, Product_ID=Item.Product_ID)
+            #product_quantity.Quantity = F(product_quantity.Quantity) + F(Item.Quantity)
+            
             product_quantity.save(using=DBName)
         selling_invoice_items.delete()
         # Check if store has sufficient quantity for every ordered product after editing
@@ -361,12 +376,13 @@ class ProcessRequest:
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
 
+    @staticmethod
     def EditPurchaseInvoice(DBName, purchase_invoice: Purchase_Invoices, RequestList, Orders, TotalPrice):
         SellerName, Paid = RequestList["SellerName"], RequestList["Paid"]
         # Subtract invoice items quantities to the store and delete those items.
         purchase_invoice_items = list(Purchase_Items.objects.using(DBName).filter(Invoice_ID=purchase_invoice.Invoice_ID))
         for item in purchase_invoice_items:
-            product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=purchase_invoice.Store_ID, Product_ID=item.Product_ID_id)
+            product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=purchase_invoice.Store_ID, Product_ID=item.Product_ID)
             product_quantity.Quantity = Decimal(product_quantity.Quantity) - Decimal(item.Quantity)
             product_quantity.save(using=DBName)
         
@@ -386,9 +402,9 @@ class ProcessRequest:
         # Check if any product has negative quantity after editing
         InsufficientQuantityProducts = []
         for Item in purchase_invoice_items:
-            existing_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=purchase_invoice.Store_ID, Product_ID=Item.Product_ID_id)
+            existing_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=purchase_invoice.Store_ID, Product_ID=Item.Product_ID)
             if existing_quantity.Quantity < 0:
-                InsufficientQuantityProducts.append(Item.Product_ID_id)
+                InsufficientQuantityProducts.append(Item.Product_ID)
                 continue
             # Delete old item
             Item.delete(using=DBName)
@@ -403,29 +419,35 @@ class ProcessRequest:
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
 
-    def EditTransitionDocument(DBName, transition_document, destination_store, RequestList, Orders):
+    @staticmethod
+    def EditTransitionDocument(DBName, transition_document: Transition_Documents, destination_store, RequestList, Orders):
         # Return quantities to source store and deduct from destination store
-        transition_document_items = list(Transition_Items.objects.using(DBName).filter(Document_ID=transition_document.Document_ID))
-        for Item in transition_document_items:
-            source_store_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=Item.Product_ID_id, Store_ID=transition_document.Source_Store_ID)
-            destination_store_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=Item.Product_ID_id, Store_ID=transition_document.Destination_Store_ID)
-            destination_store_quantity.Quantity = Decimal(destination_store_quantity.Quantity) - Decimal(Item.Quantity)
-            destination_store_quantity.save(using=DBName)
-            source_store_quantity.Quantity = Decimal(source_store_quantity.Quantity) + Decimal(Item.Quantity)
-            source_store_quantity.save(using=DBName)
+        old_transition_document_items = list(Transition_Items.objects.using(DBName).filter(Document_ID=transition_document.Document_ID))
+        for Item in old_transition_document_items:
+            Product_Quantity_Table.objects.using(DBName).filter(
+                Product_ID = Item.Product_ID,
+                Store_ID = transition_document.Destination_Store_ID
+            ).update(Quantity=F('Quantity') - Item.Quantity)
+            Product_Quantity_Table.objects.using(DBName).filter(
+                Product_ID=Item.Product_ID,
+                Store_ID=transition_document.Source_Store_ID
+            ).update(Quantity=F('Quantity') + Item.Quantity)
         InsufficentDestinationQuantityProducts = []
         # Transit quantities according to new orders, check if destination store quantity is positive and insert new doucment items
         for Order in Orders:
             product = Products_Table.objects.using(DBName).get(Product_ID=Order["ProductID"])
-            source_store_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=product, Store_ID=transition_document.Source_Store_ID)
-            source_store_quantity.Quantity = Decimal(source_store_quantity.Quantity) - Decimal(Order["Quantity"])
-            source_store_quantity.save(using=DBName)
+            # Add to destination store quantity and check if quantity is positive.
             destination_store_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=product, Store_ID=destination_store)
             destination_store_quantity.Quantity = Decimal(destination_store_quantity.Quantity) + Decimal(Order["Quantity"])
             if destination_store_quantity.Quantity < 0:
                 InsufficentDestinationQuantityProducts.append(Order["ProductID"])
                 continue
             destination_store_quantity.save(using=DBName)
+            # Subtract from source store quantity.
+            Product_Quantity_Table.objects.using(DBName).filter(
+                Product_ID = product,
+                Store_ID = transition_document.Source_Store_ID
+            ).update(Quantity=F('Quantity') - Order["Quantity"])
             new_item = Transition_Items(
                 Document_ID = transition_document,
                 Product_ID = product,
@@ -436,10 +458,10 @@ class ProcessRequest:
             return {"StatusCode":ErrorCodes.InsufficientQuantity,"Store":"Destination","ProductsIDs":InsufficentDestinationQuantityProducts}
         # Check if source store has negative quantity for any product
         InsufficientSourceQuantityProducts = []
-        for Item in transition_document_items:
-            source_store_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=Item.Product_ID_id, Store_ID=transition_document.Source_Store_ID)
+        for Item in old_transition_document_items:
+            source_store_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=Item.Product_ID, Store_ID=transition_document.Source_Store_ID)
             if source_store_quantity.Quantity < 0:
-                InsufficientSourceQuantityProducts.append(Item.Product_ID_id)
+                InsufficientSourceQuantityProducts.append(Item.Product_ID)
                 continue
             Item.delete(using=DBName)
         if InsufficientSourceQuantityProducts:
@@ -449,10 +471,11 @@ class ProcessRequest:
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
     
+    @staticmethod
     def DeletePurchaseInvoice(DBName, purchase_invoice: Purchase_Invoices):
         invoice_items = Purchase_Items.objects.using(DBName).filter(Invoice_ID=purchase_invoice.Invoice_ID)
         for Item in invoice_items:
-            ItemID, ItemQuantity = Item.Product_ID_id, Item.Quantity
+            ItemID, ItemQuantity = Item.Product_ID, Item.Quantity
             existing_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=ItemID, Store_ID=purchase_invoice.Store_ID)
             if existing_quantity.Quantity < ItemQuantity:
                 return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductID":ItemID}
@@ -463,38 +486,42 @@ class ProcessRequest:
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
 
+    @staticmethod
     def DeleteSellingInvoice(DBName, selling_invoice: Selling_Invoices):
         InvoiceID = selling_invoice.Invoice_ID
         selling_items = Selling_Items.objects.using(DBName).filter(Invoice_ID=InvoiceID)
         for Item in selling_items:
-            ItemID, ItemQuantity = Item.Product_ID_id, Item.Quantity
-            existing_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=ItemID, Store_ID=selling_invoice.Store_ID)
-            existing_quantity.Quantity = Decimal(existing_quantity.Quantity) + Decimal(ItemQuantity)
-            existing_quantity.save(using=DBName)
+            Product_Quantity_Table.objects.using(DBName).filter(
+                Product_ID = Item.Product_ID,
+                Store_ID = selling_invoice.Store_ID
+            ).update(Quantity=F('Quantity') + Item.Quantity)
             Item.delete(using=DBName)
         selling_invoice.delete(using=DBName)
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
 
+    @staticmethod
     def DeleteTransitionDocument(DBName, transition_document: Transition_Documents):
         SourceStoreID, DestinationStoreID = transition_document.Source_Store_ID, transition_document.Destination_Store_ID
         transited_items = Transition_Items.objects.using(DBName).filter(Document_ID=transition_document.Document_ID) 
         for Item in transited_items:
-            destination_store_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=Item.Product_ID_id, Store_ID=DestinationStoreID)
+            destination_store_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=Item.Product_ID, Store_ID=DestinationStoreID)
             if destination_store_quantity.Quantity < Item.Quantity:
-                return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductID":Item.Product_ID_id}
+                return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductID":Item.Product_ID}
             destination_store_quantity.Quantity = Decimal(destination_store_quantity.Quantity) - Decimal(Item.Quantity)
             destination_store_quantity.save(using=DBName)
-            source_store_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=Item.Product_ID_id, Store_ID=SourceStoreID)
-            source_store_quantity.Quantity = Decimal(source_store_quantity.Quantity) + Decimal(Item.Quantity)
-            source_store_quantity.save(using=DBName)
+            Product_Quantity_Table.objects.using(DBName).filter(
+                Product_ID = Item.Product_ID,
+                Store_ID = SourceStoreID
+            ).update(Quantity=F('Quantity') + Item.Quantity)
             Item.delete(using=DBName)
         transition_document.delete(using=DBName)
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
     
+    @staticmethod
     def DeleteAdjustmentOperation(DBName, adjustment_operation: Products_Quantities_Adjustments):
-        StoreID, ProductID, OperationType, Quantity = adjustment_operation.Store_ID, adjustment_operation.Product_ID_id, adjustment_operation.Operation_Type, adjustment_operation.Quantity
+        StoreID, ProductID, OperationType, Quantity = adjustment_operation.Store_ID, adjustment_operation.Product_ID, adjustment_operation.Operation_Type, adjustment_operation.Quantity
         if OperationType in ["MoreThanPurchaseInvoice", "Fixed", "Found"]:
             product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=StoreID, Product_ID=ProductID)
             if product_quantity.Quantity < Quantity:
@@ -502,13 +529,18 @@ class ProcessRequest:
             product_quantity.Quantity = Decimal(product_quantity.Quantity) - Decimal(Quantity)
             product_quantity.save(using=DBName)
         else:
-            product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=StoreID, Product_ID=ProductID)
-            product_quantity.Quantity = Decimal(product_quantity.Quantity) + Decimal(Quantity)
-            product_quantity.save(using=DBName)
+            # product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=StoreID, Product_ID=ProductID)
+            # product_quantity.Quantity = Decimal(product_quantity.Quantity) + Decimal(Quantity)
+            # product_quantity.save(using=DBName)
+            Product_Quantity_Table.objects.using(DBName).filter(
+                Store_ID = StoreID,
+                Product_ID = ProductID
+            ).update(Quantity=F('Quantity') + Quantity)
         adjustment_operation.delete(using=DBName)
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
     
+    @staticmethod
     def AddToAccount(RequestList):
         PersonID = RequestList["PersonID"]
         Description = RequestList["Description"]
@@ -521,6 +553,7 @@ class ProcessRequest:
         Cursor.execute(f"UPDATE Accounts SET Balance = @Old_Balance+{Amount} WHERE Person_ID = {PersonID};\n")
         ProjectDBConnector.commit()
         return {"StatusCode":0,"Data":"OK"}
+    @staticmethod
     def DeductFromAccount(RequestList):
         PersonID = RequestList["PersonID"]
         Description = RequestList["Description"]
@@ -535,17 +568,18 @@ class ProcessRequest:
         ProjectDBConnector.commit()
         return {"StatusCode":0,"Data":"OK"}
     
+    @staticmethod
     def Transit(DBName, Orders, source_store, destination_store):
         InsufficientQuantityProducts = []
         for i in range(len(Orders)):
             Orders[i]["ProductID"] = Products_Table.objects.using(DBName).get(Product_ID=Orders[i]["ProductID"])
             Order = Orders[i]
-            existing_quantity = Product_Quantity_Table.objects.using(DBName).filter(Product_ID=Order['ProductID'], Store_ID=source_store).values('Quantity').first()
-            if existing_quantity['Quantity'] < Order['Quantity']:
+            existing_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=Order['ProductID'], Store_ID=source_store)
+            if existing_quantity.Quantity < Order['Quantity']:
                 InsufficientQuantityProducts.append(Order['ProductID'])
                 continue
-            Product_Quantity_Table.objects.using(DBName).filter(Product_ID=Order['ProductID'], Store_ID=source_store).update(Quantity=models.F('Quantity') - Order['Quantity'])
-            Product_Quantity_Table.objects.using(DBName).filter(Product_ID=Order['ProductID'], Store_ID=destination_store).update(Quantity=models.F('Quantity') + Order['Quantity'])
+            Product_Quantity_Table.objects.using(DBName).filter(Product_ID=Order['ProductID'], Store_ID=source_store).update(Quantity=F('Quantity') - Order['Quantity'])
+            Product_Quantity_Table.objects.using(DBName).filter(Product_ID=Order['ProductID'], Store_ID=destination_store).update(Quantity=F('Quantity') + Order['Quantity'])
         if InsufficientQuantityProducts:
             return {"StatusCode": ErrorCodes.InsufficientQuantity,"ProductsIDs": InsufficientQuantityProducts}
         
@@ -564,6 +598,7 @@ class ProcessRequest:
         connections[DBName].commit()
         return {"StatusCode": 0,"Data": "OK"}
     
+    @staticmethod
     def SearchProducts(DBName, RequestList: dict):
         FilterArguments = {"Store_ID": RequestList["StoreID"]}
         del RequestList["RequestType"]
@@ -577,6 +612,7 @@ class ProcessRequest:
         )
         return {"StatusCode":0,"Data":list(products_list)}
     
+    @staticmethod
     def SearchInvoices(DBName, RequestList):
         InvoiceType = RequestList["InvoiceType"]
         FilterArguments = {
@@ -600,6 +636,7 @@ class ProcessRequest:
         
         return {"StatusCode":0,"Data":list(invoices_list)}
     
+    @staticmethod
     def SearchTransitionDocuments(DBName, RequestList: dict):
         StoreID = RequestList["StoreID"]
         FilterArguments = {
@@ -631,6 +668,7 @@ class ProcessRequest:
         )
         return {"StatusCode":0,"Data":list(documents_list)}
     
+    @staticmethod
     def GetInvoice(DBName, RequestList):
         InvoiceType = RequestList["InvoiceType"]
         InvoiceID = RequestList["InvoiceID"]
@@ -660,6 +698,7 @@ class ProcessRequest:
         InvoiceInfo["Items"] = list(items)
         return {"StatusCode":0,"Data":InvoiceInfo}
     
+    @staticmethod
     def GetTransitionDocument(DBName, RequestList):
         DocumentID = RequestList["DocumentID"]
         DocumentInfo = Transition_Documents.objects.using(DBName).select_related('Source_Store_ID', 'Destination_Store_ID').filter(Document_ID=DocumentID).values(
@@ -676,19 +715,20 @@ class ProcessRequest:
         DocumentInfo["Items"] = list(items)
         return {"StatusCode":0,"Data":DocumentInfo}
     
-    def AdjustProductQuantity(DBName, RequestList, store):
+    @staticmethod
+    def AdjustProductQuantity(DBName, RequestList: dict, store):
         OperationType, ProductID, Quantity = (
             RequestList["OperationType"], RequestList["ProductID"], RequestList["Quantity"])
         match OperationType:
             case "MoreThanPurchaseInvoice" | "Fixed" | "Found":
                 #Cursor.execute(f"UPDATE Product_Quantity_Table SET Quantity = Quantity + {Quantity} WHERE Store_ID={StoreID} AND Product_ID={ProductID};")
-                Product_Quantity_Table.objects.using(DBName).filter(Store_ID=store, Product_ID=ProductID).update(Quantity=models.F('Quantity') + Quantity)
+                Product_Quantity_Table.objects.using(DBName).filter(Store_ID=store, Product_ID=ProductID).update(Quantity=F('Quantity') + Quantity)
             case "LessThanPurchaseInvoice" | "Damaged" | "Lost":
                 #Cursor.execute(f"SELECT Quantity FROM Product_Quantity_Table WHERE Store_ID={StoreID} AND Product_ID={ProductID};")
-                product_quantity = Product_Quantity_Table.objects.using(DBName).filter(Store_ID=store, Product_ID=ProductID).values('Quantity').first()
-                if product_quantity['Quantity'] - float(Quantity) < 0:
+                product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=store, Product_ID=ProductID)
+                if product_quantity.Quantity < Decimal(Quantity):
                     return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductID":ProductID}
-                Product_Quantity_Table.objects.using(DBName).filter(Store_ID=store, Product_ID=ProductID).update(Quantity=models.F('Quantity') - Quantity)
+                Product_Quantity_Table.objects.using(DBName).filter(Store_ID=store, Product_ID=ProductID).update(Quantity=F('Quantity') - Quantity)
         #Cursor.execute(f"INSERT INTO Products_Quantities_Adjustments(Store_ID,Product_ID,Operation_Type,Quantity,Note) VALUES ('{StoreID}','{ProductID}','{OperationType}','{Quantity}','{Note}');")
         adjustment_operation = Products_Quantities_Adjustments(
             Store_ID = store,
@@ -700,6 +740,7 @@ class ProcessRequest:
         adjustment_operation.save(using=DBName)
         connections[DBName].commit()
         return {"StatusCode":0,"Data":"OK"}
+    @staticmethod
     def SearchAdjustmentOperations(DBName, RequestList):
         StoreID = RequestList["StoreID"]
         FilterArguments = {
@@ -722,6 +763,7 @@ class ProcessRequest:
         
     
 class SearchFiltersValidation:
+    @staticmethod
     def SellingInvoices(RequestList):
         for Filter in RequestList.keys():
             match Filter:
@@ -746,6 +788,8 @@ class SearchFiltersValidation:
                 case _:
                     return {"StatusCode":ErrorCodes.InvalidValue,"Filter":Filter}
         return 0
+    
+    @staticmethod
     def PurchaseInvoices(RequestList):
         for Filter in RequestList.keys():
             match Filter:
@@ -841,8 +885,7 @@ def getTransitionOrders(DBName, RequestList: dict):
 ValidHistoryTables = ["Selling_Invoices","Purchase_Invoices","Transition_Documents","Accounts_Operations"]
 ValidInvoiceTypes = ["Selling","Purchase"]
 class CheckValidation:
-    def __init__(self):
-        pass
+    @staticmethod
     def CreateProject(RequestList):
         try:
             ProjectName, ProjectDescription = RequestList["ProjectName"], RequestList["ProjectDescription"]
@@ -851,6 +894,8 @@ class CheckValidation:
         if len(ProjectName) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ProjectName"}
         if len(ProjectDescription) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ProjectDescription"}
         return ProcessRequest.CreateProject(RequestList)
+
+    @staticmethod
     def CreateAccount(RequestList):
         try:
             ProjectID, PersonName = RequestList["ProjectID"], RequestList["PersonName"]
@@ -861,6 +906,8 @@ class CheckValidation:
         if Debt_Accounts.objects.using(f"Project{ProjectID}").filter(Person_Name=PersonName).exists():
             return {"StatusCode":ErrorCodes.RedundantValue,"Variable":"PersonName"}
         return ProcessRequest.CreateAccount(f"Project{ProjectID}", RequestList)
+    
+    @staticmethod
     def AddStore(RequestList):
         try:
             ProjectID, StoreName = RequestList["ProjectID"], RequestList["StoreName"]
@@ -873,6 +920,7 @@ class CheckValidation:
         if len(StoreName) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"StoreName"}
         return ProcessRequest.AddStore(f"Project{ProjectID}", RequestList)
     
+    @staticmethod
     def GetStores(RequestList):
         try:
             ProjectID = RequestList["ProjectID"]
@@ -883,6 +931,7 @@ class CheckValidation:
         if ProjectsDBsConnectors.get(ProjectID) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
         return ProcessRequest.GetStores(f"Project{ProjectID}")
     
+    @staticmethod
     def AddProduct(RequestList):
         try:
             ProjectID = RequestList["ProjectID"]
@@ -914,6 +963,7 @@ class CheckValidation:
         if float(RetailPrice) < 0:return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
         return ProcessRequest.AddProduct(f"Project{ProjectID}", RequestList)
     
+    @staticmethod
     def EditProductInfo(RequestList):
         try:
             ProjectID, ProductID, ProductName, Trademark, ManufactureCountry, PurchasePrice, WholesalePrice, RetailPrice, QuantityUnit = (
@@ -943,6 +993,7 @@ class CheckValidation:
         if len(QuantityUnit) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"QuantityUnit"}
         return ProcessRequest.EditProductInfo(f"Project{ProjectID}", RequestList)
     
+    @staticmethod
     def GetProductInfo(RequestList):
         try:
             ProjectID, ProductID = RequestList["ProjectID"], RequestList["ProductID"]
@@ -957,6 +1008,7 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.NonexistentProduct,"Variable":"ProductID"}
         return ProcessRequest.GetProductInfo(f"Project{ProjectID}", RequestList)
 
+    @staticmethod
     def GetProductsQuantities(RequestList):
         try:
             ProjectID, StoreID = RequestList["ProjectID"], RequestList["StoreID"]
@@ -978,6 +1030,7 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
         return ProcessRequest.GetProductsQuantities(f"Project{ProjectID}", RequestList, ProductsIDs, store)    
     
+    @staticmethod
     def Sell(RequestList):
         try:
             ProjectID, StoreID, ClientName, Paid = (
@@ -1004,6 +1057,7 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Paid"}
         return ProcessRequest.Sell(f"Project{ProjectID}", RequestList, Orders, RequiredAmount, store)
     
+    @staticmethod
     def Purchase(RequestList):
         try:
             ProjectID, StoreID, SellerName, Paid = (
@@ -1029,6 +1083,7 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Paid"}
         return ProcessRequest.Purchase(f"Project{ProjectID}", RequestList, Orders, TotalPrice, store)
     
+    @staticmethod
     def EditSellingInvoice(RequestList):
         try:
             ProjectID, InvoiceID, ClientName, Paid = (
@@ -1054,6 +1109,7 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Paid"}
         return ProcessRequest.EditSellingInvoice(f"Project{ProjectID}", selling_invoice, RequestList, Orders, TotalPrice)
     
+    @staticmethod
     def EditPurchaseInvoice(RequestList):
         try:
             ProjectID, InvoiceID, SellerName, Paid = (
@@ -1080,7 +1136,7 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.InvalidValue,"Variable": "Paid"}
         return ProcessRequest.EditPurchaseInvoice(f"Project{ProjectID}", purchase_invoice, RequestList, Orders, TotalPrice)
     
-    
+    @staticmethod
     def EditTransitionDocument(RequestList):
         try:
             ProjectID, DocumentID, DestinationStoreID = (RequestList["ProjectID"],
@@ -1103,6 +1159,7 @@ class CheckValidation:
             return {"StatusCode": ErrorCodes.MissingVariables, "Variable": "Products"}
         return ProcessRequest.EditTransitionDocument(f"Project{ProjectID}", transition_document, destination_store, RequestList, Orders)
     
+    @staticmethod
     def DeletePurchaseInvoice(RequestList):
         try:
             ProjectID, InvoiceID = RequestList["ProjectID"], RequestList["InvoiceID"]
@@ -1116,6 +1173,7 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"InvoiceID"}
         return ProcessRequest.DeletePurchaseInvoice(f"Project{ProjectID}", purchase_invoice)
     
+    @staticmethod
     def DeleteSellingInvoice(RequestList):
         try:
             ProjectID, InvoiceID = RequestList["ProjectID"], RequestList["InvoiceID"]
@@ -1129,6 +1187,7 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"InvoiceID"}
         return ProcessRequest.DeleteSellingInvoice(f"Project{ProjectID}", selling_invoice)
 
+    @staticmethod
     def DeleteTransitionDocument(RequestList):
         try:
             ProjectID, DocumentID = RequestList["ProjectID"], RequestList["DocumentID"]
@@ -1142,6 +1201,7 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"DocumentID"}
         return ProcessRequest.DeleteTransitionDocument(f"Project{ProjectID}", transition_document)
     
+    @staticmethod
     def DeleteAdjustmentOperation(RequestList):
         try:
             ProjectID, OperationID = RequestList["ProjectID"], RequestList["OperationID"]
@@ -1155,6 +1215,7 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"OperationID"}
         return ProcessRequest.DeleteAdjustmentOperation(f"Project{ProjectID}", adjustment_operation)
     
+    @staticmethod
     def AddToAccount(RequestList):
         try:
             ProjectID, PersonID, Description, Amount = (
@@ -1164,7 +1225,7 @@ class CheckValidation:
         if ProjectID not in ProjectsDBsConnectors.keys(): return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
         if not isintstr(PersonID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
         
-        if not isintstr(Amount, float): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+        if not isintstr(Amount): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
         if PersonID<0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
         if len(Description)==0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
         if Amount<=0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
@@ -1173,6 +1234,8 @@ class CheckValidation:
         ProjectDBConnector = ProjectsDBsConnectors[ProjectID]
         Cursor = ProjectDBConnector.cursor(dictionary=True, buffered=True)
         return ProcessRequest.AddToAccount(RequestList)
+    
+    @staticmethod
     def DeductFromAccount(RequestList):
         try:
             ProjectID, PersonID, Description, Amount = (
@@ -1191,6 +1254,7 @@ class CheckValidation:
         Cursor = ProjectDBConnector.cursor(dictionary=True, buffered=True)
         return ProcessRequest.DeductFromAccount(RequestList)
     
+    @staticmethod
     def Transit(RequestList):
         try:
             ProjectID, SourceStoreID, DestinationStoreID = (RequestList["ProjectID"],
@@ -1216,6 +1280,7 @@ class CheckValidation:
             return {"StatusCode": ErrorCodes.MissingVariables, "Variable": "Products"}
         return ProcessRequest.Transit(f"Project{ProjectID}", Orders, source_store, destination_store)
     
+    @staticmethod
     def SearchProducts(RequestList):
         try:
             ProjectID, StoreID = RequestList["ProjectID"], RequestList["StoreID"]
@@ -1240,6 +1305,7 @@ class CheckValidation:
 
         return ProcessRequest.SearchProducts(f"Project{ProjectID}", RequestList)
     
+    @staticmethod
     def SearchInvoices(RequestList):
         try:
             ProjectID, InvoiceType, StoreID, FromDateTime, ToDateTime = (RequestList["ProjectID"], RequestList["InvoiceType"],
@@ -1271,6 +1337,7 @@ class CheckValidation:
             return Error    
         return ProcessRequest.SearchInvoices(f"Project{ProjectID}", RequestList)
     
+    @staticmethod
     def SearchTransitionDocuments(RequestList):
         try:
             ProjectID, StoreID, FromDateTime, ToDateTime = RequestList["ProjectID"], RequestList["StoreID"], RequestList["FromDateTime"], RequestList["ToDateTime"]
@@ -1300,6 +1367,7 @@ class CheckValidation:
                     return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Filter","Filter":Filter}
         return ProcessRequest.SearchTransitionDocuments(f"Project{ProjectID}", RequestList)
     
+    @staticmethod
     def GetInvoice(RequestList):
         try:
             ProjectID, InvoiceType, InvoiceID = RequestList["ProjectID"], RequestList["InvoiceType"], RequestList["InvoiceID"]
@@ -1311,6 +1379,7 @@ class CheckValidation:
         if not InvoiceType in ValidInvoiceTypes: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
         return ProcessRequest.GetInvoice(f"Project{ProjectID}", RequestList)
     
+    @staticmethod
     def GetTransitionDocument(RequestList):
         try:
             ProjectID, DocumentID = RequestList["ProjectID"], RequestList["DocumentID"]
@@ -1321,6 +1390,7 @@ class CheckValidation:
         if not isintstr(DocumentID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
         return ProcessRequest.GetTransitionDocument(f"Project{ProjectID}", RequestList)
     
+    @staticmethod
     def AdjustProductQuantity(RequestList):
         try:
             ProjectID, StoreID, OperationType, ProductID, Quantity = (RequestList["ProjectID"],
@@ -1339,6 +1409,7 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
         return ProcessRequest.AdjustProductQuantity(f"Project{ProjectID}", RequestList, store)
     
+    @staticmethod
     def SearchAdjustmentOperations(RequestList):
         try:
             ProjectID, StoreID, FromDateTime, ToDateTime = (RequestList["ProjectID"], RequestList["StoreID"],
@@ -1369,19 +1440,9 @@ class CheckValidation:
                     return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Filter","Filter":Filter}
         return ProcessRequest.SearchAdjustmentOperations(f"Project{ProjectID}", RequestList)
 
-def SanitizeRequest(RequestList):
-    if isinstance(RequestList, list):
-        for i in range(len(RequestList)):
-            RequestList[i] = SanitizeRequest(RequestList[i])
-    elif isinstance(RequestList, dict):
-        for key in RequestList.keys():
-            RequestList[key] = SanitizeRequest(RequestList[key])
-    elif isinstance(RequestList, str):
-        RequestList = RequestList.replace("'","''")
-    return RequestList
+
 def StartRequestProcessing(Request):
     RequestList = Request.GET.dict()
-    RequestList = SanitizeRequest(RequestList)
     try:
         RequestType = RequestList["RequestType"]
     except:
@@ -1390,7 +1451,7 @@ def StartRequestProcessing(Request):
         case "CreateProject":
             Response = CheckValidation.CreateProject(RequestList)
         case "GetProjects":
-            Response = ProcessRequest.GetProjects(RequestList)
+            Response = ProcessRequest.GetProjects()
         case "CreateAccount":
             Response = CheckValidation.CreateAccount(RequestList)
         case "AddStore":

@@ -70,8 +70,18 @@ mariadb -u $db_user -p"$db_password" -e "
   );"
 echo "Database setup completed successfully."
 
-
+# If session 'alfacpm' exists, ask to kill it.
+if tmux has-session -t alfacpm 2>/dev/null; then
+  read -p "Tmux session 'alfacpm' already exists. Do you want to kill it? (y/n): " choice
+  case "$choice" in
+    y|Y ) tmux kill-session -t alfacpm;;
+    n ) echo "Exiting script."; exit 0;;
+    * ) echo "Invalid choice. Exiting script."; exit 1;;
+  esac
+fi
 tmux new-session -d -s alfacpm
+# Enable mouse support in tmux.
+tmux set -g mouse on
 # Split the tmux window into two panes.
 tmux split-window -h -t alfacpm
 # Start the backend and frontend services in tmux panes.
