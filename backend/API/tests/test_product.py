@@ -1,9 +1,9 @@
 import pytest
 from django.test import Client
-from django.db import connections
 from API.models import *
 
-
+# TODO: Add tests for error cases.
+# TODO: Adjust tests to cover small quantity and large quantity.
 @pytest.mark.django_db(transaction=True, databases="__all__")
 def test_add_product(client: Client, create_test_project, django_db_blocker):
     ProjectDBName = f"Project{create_test_project}"

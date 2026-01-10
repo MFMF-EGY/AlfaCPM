@@ -16,7 +16,8 @@ function ProductsTabContent({ref}){
     PurchasePrice: "",
     WholesalePrice: "",
     RetailPrice: "",
-    ProductQuantity: ""
+    LargeQuantityUnit: "",
+    SmallQuantityUnit: ""
   });
   const [ UpdateTab, setUpdateTab ] = useState(0);
   const [ ProductsList, setProductsList] = useState([]);
@@ -38,7 +39,7 @@ function ProductsTabContent({ref}){
   }, [UpdateTab, ProjectID, StoreID]);
 
   const fetchProducts = async () => {
-    var RequestParams = {RequestType:"SearchProducts", ProjectID:ProjectID, StoreID:StoreID};
+    var RequestParams = { RequestType: "SearchProducts", ProjectID: ProjectID, StoreID: StoreID };
     if (SearchParam.ProductID){ RequestParams.Product_ID__Product_ID = SearchParam.ProductID; }
     if (SearchParam.ProductName){ RequestParams.Product_ID__Product_Name = SearchParam.ProductName; }
     if (SearchParam.Trademark){ RequestParams.Product_ID__Trademark = SearchParam.Trademark; }
@@ -46,7 +47,8 @@ function ProductsTabContent({ref}){
     if (SearchParam.PurchasePrice){ RequestParams.Product_ID__Purchase_Price = SearchParam.PurchasePrice; }
     if (SearchParam.WholesalePrice){ RequestParams.Product_ID__Wholesale_Price = SearchParam.WholesalePrice; }
     if (SearchParam.RetailPrice){ RequestParams.Product_ID__Retail_Price = SearchParam.RetailPrice; }
-    if (SearchParam.ProductQuantity){ RequestParams.Quantity = SearchParam.ProductQuantity; }
+    if (SearchParam.LargeQuantityUnit){ RequestParams.Product_ID__Large_Quantity = SearchParam.LargeQuantityUnit; }
+    if (SearchParam.SmallQuantityUnit){ RequestParams.Product_ID__Small_Quantity = SearchParam.SmallQuantityUnit; }
     await axios.get(API_URL, {params: RequestParams})
       .then(
         (response)=>{
@@ -79,7 +81,8 @@ function ProductsTabContent({ref}){
                 <th>سعر الشراء</th>
                 <th>سعر بيع الجملة</th>
                 <th>سعر بيع التجزئة</th>
-                <th>الكمية</th>
+                <th>الكمية الكبيرة</th>
+                <th>الكمية الصغيرة</th>
               </tr>
             </thead>
             <tbody>
@@ -110,7 +113,10 @@ function AddProductForm(){
   const AddProductPurchasePriceRef = useRef();
   const AddProductWholesalePriceRef = useRef();
   const AddProductRetailPriceRef = useRef();
-  const AddProductQuantityUnitRef = useRef();
+  const AddProductLargeQuantityUnitRef = useRef();
+  const AddProductSmallQuantityUnitRef = useRef();
+  const AddProductConversionRateRef = useRef();
+  const AddProductPartialSmallQuantityAllowedRef = useRef();
   const AddProduct = (event) => {
     var RequestParams = {
       RequestType:"AddProduct",
@@ -122,11 +128,14 @@ function AddProductForm(){
       PurchasePrice: AddProductPurchasePriceRef.current.value,
       WholesalePrice: AddProductWholesalePriceRef.current.value,
       RetailPrice: AddProductRetailPriceRef.current.value,
-      QuantityUnit: AddProductQuantityUnitRef.current.value,
+      LargeQuantityUnit: AddProductLargeQuantityUnitRef.current.value,
+      SmallQuantityUnit: AddProductSmallQuantityUnitRef.current.value,
+      ConversionRate: AddProductConversionRateRef.current.value,
+      PartialSmallQuantityAllowed: AddProductPartialSmallQuantityAllowedRef.current.checked == true ? "True" : "False"
     };
-    if (SelectedRow.current){
-      RequestParams.ProductOrder = ProductsList[SelectedRow.current.rowIndex - 1].Product_Order + 1;
-    }
+    // if (SelectedRow.current){
+    //   RequestParams.ProductOrder = ProductsList[SelectedRow.current.rowIndex - 1].Product_Order + 1;
+    // }
     
     axios.get(API_URL, {params: RequestParams},)
       .then((response)=>{
@@ -170,8 +179,20 @@ function AddProductForm(){
           <input type="number" ref={AddProductRetailPriceRef}></input>
         </div>
         <div>
-          <label>وحدة قياس الكمية</label>
-          <input type="text" ref={AddProductQuantityUnitRef}></input>
+          <label>وحدة القياس الكبرى</label>
+          <input type="text" ref={AddProductLargeQuantityUnitRef}></input>
+        </div>
+        <div>
+          <label>وحدة القياس الصغرى</label>
+          <input type="text" ref={AddProductSmallQuantityUnitRef}></input>
+        </div>
+        <div>
+          <label>نسبة التحويل</label>
+          <input type="number" ref={AddProductConversionRateRef}></input>
+        </div>
+        <div>
+          <label>السماح بكمية صغيرة جزئية</label>
+          <input type="checkbox" ref={AddProductPartialSmallQuantityAllowedRef}></input>
         </div>
         <div>
           <button onClick={(event) => AddProduct(event)}>إضافة</button>
@@ -254,7 +275,10 @@ function EditProductForm(){
   const EditProductPurchasePrice = useRef(null);
   const EditProductWholesalePrice = useRef(null);
   const EditProductRetailPrice = useRef(null);
-  const EditProductQuantityUnit = useRef(null);
+  const EditProductLargeQuantityUnit = useRef(null);
+  const EditProductSmallQuantityUnit = useRef(null);
+  const EditProductConversionRate = useRef(null);
+  const EditProductPartialSmallQuantityAllowed = useRef(null);
   const EditProduct = () => {
     var RequestParams = {RequestType:"EditProductInfo",
       ProjectID:ProjectID,
@@ -265,7 +289,10 @@ function EditProductForm(){
       PurchasePrice:EditProductPurchasePrice.current.value,
       WholesalePrice:EditProductWholesalePrice.current.value,
       RetailPrice:EditProductRetailPrice.current.value,
-      QuantityUnit:EditProductQuantityUnit.current.value,
+      LargeQuantityUnit:EditProductLargeQuantityUnit.current.value,
+      SmallQuantityUnit: EditProductSmallQuantityUnit.current.value,
+      ConversionRate: EditProductConversionRate.current.value,
+      PartialSmallQuantityAllowed: EditProductPartialSmallQuantityAllowed.current.checked == true ? "True" : "False"
     };
     axios.get(API_URL, {params: RequestParams})
       .then((response)=>{
@@ -288,7 +315,10 @@ function EditProductForm(){
       EditProductPurchasePrice.current.value = ProductsList[RowIndex].Product_ID__Purchase_Price;
       EditProductWholesalePrice.current.value = ProductsList[RowIndex].Product_ID__Wholesale_Price;
       EditProductRetailPrice.current.value = ProductsList[RowIndex].Product_ID__Retail_Price;
-      EditProductQuantityUnit.current.value = ProductsList[RowIndex].Product_ID__Quantity_Unit;
+      EditProductLargeQuantityUnit.current.value = ProductsList[RowIndex].Product_ID__Large_Quantity_Unit;
+      EditProductSmallQuantityUnit.current.value = ProductsList[RowIndex].Product_ID__Small_Quantity_Unit;
+      EditProductConversionRate.current.value = ProductsList[RowIndex].Product_ID__Conversion_Rate;
+      EditProductPartialSmallQuantityAllowed.current.checked = ProductsList[RowIndex].Product_ID__Partial_Small_Quantity_Allowed;
     }
   })
 
@@ -327,11 +357,23 @@ function EditProductForm(){
           <input type="number" ref={EditProductRetailPrice} />
         </div>
         <div>
-          <label>وحدة قياس الكمية</label>
-          <input type="text" ref={EditProductQuantityUnit} />
+          <label>وحدة القياس الكبرى</label>
+          <input type="text" ref={EditProductLargeQuantityUnit} />
         </div>
         <div>
-          <button onClick={(event) => EditProduct(event)}>تعديل</button>
+          <label>وحدة القياس الصغرى</label>
+          <input type="text" ref={EditProductSmallQuantityUnit} />
+        </div>
+        <div>
+          <label>نسبة التحويل</label>
+          <input type="number" ref={EditProductConversionRate} />
+        </div>
+        <div>
+          <label>السماح بكمية صغيرة جزئية</label>
+          <input type="checkbox" ref={EditProductPartialSmallQuantityAllowed} />
+        </div>
+        <div>
+          <button onClick={() => EditProduct()}>تعديل</button>
         </div>
       </div>
     </div>
@@ -359,7 +401,8 @@ function ProductsTableBody(){
         <td>{product.Product_ID__Purchase_Price}</td>
         <td>{product.Product_ID__Wholesale_Price}</td>
         <td>{product.Product_ID__Retail_Price}</td>
-        <td>{product.Quantity+" "+product.Product_ID__Quantity_Unit}</td>
+        <td>{Math.floor(product.Quantity / product.Product_ID__Conversion_Rate) + " " + product.Product_ID__Large_Quantity_Unit}</td>
+        <td>{(product.Quantity % product.Product_ID__Conversion_Rate) + " " + product.Product_ID__Small_Quantity_Unit}</td>
       </tr>
     ))
   );

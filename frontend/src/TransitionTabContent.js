@@ -169,8 +169,11 @@ function CreateDocumentForm(){
     ProductID: "",
     Trademark: "",
     ManufactureCountry: "",
-    Quantity: "",
-    QuantityUnit: "",
+    LargeQuantity: "",
+    SmallQuantity: "",
+    LargeQuantityUnit: "",
+    SmallQuantityUnit: "",
+    ConversionRate: ""
   })));
   const [ ValidationChecker, setValidationChecker ] = useState(Array.from({ length: 12 }, () => undefined));
   const [ SelectedItemIndex, setSelectedItemIndex ] = useState(null);
@@ -207,9 +210,12 @@ function CreateDocumentForm(){
       ProjectID: ProjectID,
       SourceStoreID: StoreID,
       DestinationStoreID: DocumentInfo.DestinationStoreID,
-      Orders: ItemsList.map((item) => (item.ProductID !== "" && item.Quantity !== "" ? {
+      Items: ItemsList.map((item) => (item.ProductID !== "" && (item.LargeQuantity !== "" || item.SmallQuantity !== "") ? {
         ProductID: item.ProductID,
-        Quantity: item.Quantity
+        LargeQuantity: item.LargeQuantity,
+        LargeQuantityUnit: item.LargeQuantityUnit,
+        SmallQuantity: item.SmallQuantity,
+        SmallQuantityUnit: item.SmallQuantityUnit
       } : null))
     }
     await axios.get(API_URL, {params: RequestParams})
@@ -280,7 +286,9 @@ function CreateDocumentForm(){
                 <th>العلامة التجارية</th>
                 <th>بلد الصنع</th>
                 <th>الكود</th>
-                <th>الكمية</th>
+                <th>الكمية الكبيرة</th>
+                <th>الوحدة</th>
+                <th>الكمية الصغيرة</th>
                 <th>الوحدة</th>
               </tr>
             </thead>
@@ -313,8 +321,11 @@ function CreateDocumentForm(){
               ProductID: "",
               Trademark: "",
               ManufactureCountry: "",
-              Quantity: "",
-              QuantityUnit: ""
+              LargeQuantity: "",
+              LargeQuantityUnit: "",
+              SmallQuantity: "",
+              SmallQuantityUnit: "",
+              ConversionRate: ""
             }} 
           />
         </div>
@@ -431,7 +442,7 @@ function SearchDocumentForm(){
     <div className='Form-container'>
       <div className="Form">
         <div>
-          <button className="Form-close" onClick={(event) => setOpendForm(null)}>X</button>
+          <button className="Form-close" onClick={() => setOpendForm(null)}>X</button>
         </div>
         <div>
           <label>الكود</label>
@@ -493,8 +504,10 @@ function EditDocumentForm(){
     ProductID: "",
     Trademark: "",
     ManufactureCountry: "",
-    Quantity: "",
-    QuantityUnit: "",
+    LargeQuantity: "",
+    LargeQuantityUnit: "",
+    SmallQuantity: "",
+    SmallQuantityUnit: "",
   })));
   const [ ValidationChecker, setValidationChecker ] = useState(Array.from({ length: 12 }, () => undefined));
   const [ SelectedItemIndex, setSelectedItemIndex ] = useState(null);
@@ -515,8 +528,11 @@ function EditDocumentForm(){
           ProductID: "",
           Trademark: "",
           ManufactureCountry: "",
-          Quantity: "",
-          QuantityUnit: "",
+          LargeQuantity: "",
+          LargeQuantityUnit: "",
+          SmallQuantity: "",
+          SmallQuantityUnit: "",
+          ConversionRate: ""
         }));
         response.data.Data.Items.forEach((item, index) => {
           NewItemsList[index] = {
@@ -524,8 +540,11 @@ function EditDocumentForm(){
             ProductID: item.Product_ID__Product_ID,
             Trademark: item.Product_ID__Trademark,
             ManufactureCountry: item.Product_ID__Manufacture_Country,
-            Quantity: item.Quantity,
-            QuantityUnit: item.Product_ID__Quantity_Unit,
+            LargeQuantity: Math.floor(item.Quantity / item.Product_ID__Conversion_Rate),
+            LargeQuantityUnit: item.Product_ID__Large_Quantity_Unit,
+            SmallQuantity: item.Quantity % item.Product_ID__Conversion_Rate,
+            SmallQuantityUnit: item.Product_ID__Small_Quantity_Unit,
+            ConversionRate: item.Product_ID__Conversion_Rate
           }
         });
         setItemsList(NewItemsList);
@@ -577,9 +596,10 @@ function EditDocumentForm(){
       DocumentID: SelectedRow.current.children[1].innerText,
       SourceStoreID: DocumentInfo.SourceStoreID,
       DestinationStoreID: DocumentInfo.DestinationStoreID,
-      Orders: ItemsList.map((item) => (item.ProductID !== "" && item.Quantity !== "" ? {
+      Items: ItemsList.map((item) => (item.ProductID !== "" && (item.LargeQuantity !== "" || item.SmallQuantity !== "") ? {
         ProductID: item.ProductID,
-        Quantity: item.Quantity
+        LargeQuantity: item.LargeQuantity,
+        SmallQuantity: item.SmallQuantity
       } : null))
     }
     await axios.get(API_URL, {params: RequestParams})
@@ -661,8 +681,10 @@ function EditDocumentForm(){
                   <th>العلامة التجارية</th>
                   <th>بلد الصنع</th>
                   <th>الكود</th>
-                  <th>الكمية</th>
-                  <th>الوحدة</th>
+                  <th>الكمية الكبيرة</th>
+                  <th>الوحدة الكبيرة</th>
+                  <th>الكمية الصغيرة</th>
+                  <th>الوحدة الصغيرة</th>
                 </tr>
               </thead>
               <tbody>
@@ -695,8 +717,11 @@ function EditDocumentForm(){
                 ProductID: "",
                 Trademark: "",
                 ManufactureCountry: "",
-                Quantity: "",
-                QuantityUnit: ""
+                LargeQuantity: "",
+                LargeQuantityUnit: "",
+                SmallQuantity: "",
+                SmallQuantityUnit: "",
+                ConversionRate: ""
               }} 
             />
           </div>

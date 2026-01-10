@@ -28,7 +28,6 @@ function SuggestionsInput({ Type, Value, Suggestions, Disabled, onFocus, onChang
         onFocus={()=>{
           setShowSuggestions(true);
           onFocus();
-          console.log(Suggestions);
         }}
         onChange={(event) => {
           onChange(event);

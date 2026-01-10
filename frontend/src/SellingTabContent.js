@@ -235,7 +235,7 @@ function SearchInvoicesForm(){
     <div className='Form-container'>
       <div className="Form">
         <div>
-          <button className="Form-close" onClick={(event) => setOpendForm("")}>X</button>
+          <button className="Form-close" onClick={() => setOpendForm("")}>X</button>
         </div>
         <div>
           <label>الكود</label>
@@ -284,9 +284,12 @@ function CreateInvoiceForm(){
     ProductID: "",
     Trademark: "",
     ManufactureCountry: "",
-    Quantity: "",
-    QuantityUnit: "",
-    UnitPrice: "",
+    LargeQuantity: "",
+    LargeQuantityUnit: "",
+    LargeUnitPrice: "",
+    SmallQuantity: "",
+    SmallQuantityUnit: "",
+    SmallUnitPrice: "",
     Price: ""
   })));
   const [ ValidationChecker, setValidationChecker ] = useState(Array.from({ length: 12 }, () => undefined));
@@ -324,10 +327,11 @@ function CreateInvoiceForm(){
       ProjectID: ProjectID,
       StoreID: StoreID,
       ClientName: InvoiceInfo.SellerName,
-      Orders: ItemsList.map((item) => (item.ProductID !== "" && item.Quantity !== "" && item.UnitPrice !== "" ? {
+      Items: ItemsList.map((item) => (item.ProductID !== "" && (item.LargeQuantity !== "" || item.SmallQuantity !== "") && (item.LargeUnitPrice !== "" || item.SmallUnitPrice !== "") ? {
         ProductID: item.ProductID,
-        Quantity: item.Quantity,
-        UnitPrice: item.UnitPrice,
+        LargeQuantity: item.LargeQuantity,
+        SmallQuantity: item.SmallQuantity,
+        UnitPrice: item.SmallUnitPrice,
       }: null)),
       Paid: InvoiceInfo.Paid
     }
@@ -384,8 +388,11 @@ function CreateInvoiceForm(){
                 <th>العلامة التجارية</th>
                 <th>بلد التصنيع</th>
                 <th>الكود</th>
-                <th>الكمية</th>
-                <th>الوحدة</th>
+                <th>الكمية الكبيرة</th>
+                <th>الوحدة الكبيرة</th>
+                <th>سعر الوحدة</th>
+                <th>الكمية الصغيرة</th>
+                <th>الوحدة الصغيرة</th>
                 <th>سعر الوحدة</th>
                 <th>السعر</th>
               </tr>
@@ -420,9 +427,12 @@ function CreateInvoiceForm(){
               ProductID: "",
               Trademark: "",
               ManufactureCountry: "",
-              Quantity: "",
-              QuantityUnit: "",
-              UnitPrice: "",
+              LargeQuantity: "",
+              LargeQuantityUnit: "",
+              LargeUnitPrice: "",
+              SmallQuantity: "",
+              SmallQuantityUnit: "",
+              SmallUnitPrice: "",
               Price: ""
             }} 
           />
@@ -497,9 +507,13 @@ function EditInvoiceForm(){
     ProductID: "",
     Trademark: "",
     ManufactureCountry: "",
-    Quantity: "",
-    QuantityUnit: "",
-    UnitPrice: "",
+    LargeQuantity: "",
+    LargeQuantityUnit: "",
+    LargeUnitPrice: "",
+    SmallQuantity: "",
+    SmallQuantityUnit: "",
+    SmallUnitPrice: "",
+    ConversionRate: "",
     Price: ""
   })));
   const [ ValidationChecker, setValidationChecker ] = useState(Array.from({ length: 12 }, () => undefined));
@@ -522,9 +536,13 @@ function EditInvoiceForm(){
             ProductID: "",
             Trademark: "",
             ManufactureCountry: "",
-            Quantity: "",
-            QuantityUnit: "",
-            UnitPrice: "",
+            LargeQuantity: "",
+            LargeQuantityUnit: "",
+            LargeUnitPrice: "",
+            SmallQuantity: "",
+            SmallQuantityUnit: "",
+            SmallUnitPrice: "",
+            ConversionRate: "",
             Price: ""
           }));
           response.data.Data.Items.forEach((item, index) => {
@@ -533,10 +551,14 @@ function EditInvoiceForm(){
               ProductID: item.Product_ID__Product_ID,
               Trademark: item.Product_ID__Trademark,
               ManufactureCountry: item.Product_ID__Manufacture_Country,
-              Quantity: item.Quantity,
-              QuantityUnit: item.Product_ID__Quantity_Unit,
-              UnitPrice: item.Unit_Price,
-              Price: item.Quantity * item.Unit_Price
+              LargeQuantity: Math.floor(item.Quantity / item.Product_ID__Conversion_Rate),
+              LargeQuantityUnit: item.Product_ID__Large_Quantity_Unit,
+              LargeUnitPrice: (item.Unit_Price * item.Product_ID__Conversion_Rate).toFixed(4),
+              SmallQuantity: item.Quantity % item.Product_ID__Conversion_Rate,
+              SmallQuantityUnit: item.Product_ID__Small_Quantity_Unit,
+              SmallUnitPrice: (+item.Unit_Price).toFixed(4),
+              ConversionRate: item.Product_ID__Conversion_Rate,
+              Price: (item.Quantity * item.Unit_Price).toFixed(2)
             }
           });
           setItemsList(NewItemsList);
@@ -593,10 +615,11 @@ function EditInvoiceForm(){
       ProjectID: ProjectID,
       InvoiceID: InvoiceInfo.InvoiceID,
       ClientName: InvoiceInfo.ClientName,
-      Orders: ItemsList.map((item) => (item.ProductID !== "" && item.Quantity !== "" && item.UnitPrice !== "" ? {
+      Items: ItemsList.map((item) => (item.ProductID !== "" && (item.LargeQuantity !== "" || item.SmallQuantity !== "") && (item.LargeUnitPrice !== "" || item.SmallUnitPrice !== "") ? {
         ProductID: item.ProductID,
-        Quantity: item.Quantity,
-        UnitPrice: item.UnitPrice,
+        LargeQuantity: item.LargeQuantity,
+        SmallQuantity: item.SmallQuantity,
+        UnitPrice: item.SmallUnitPrice,
       }: null)),
       Paid: InvoiceInfo.Paid
     }
@@ -664,7 +687,10 @@ function EditInvoiceForm(){
                   <th>العلامة التجارية</th>
                   <th>بلد التصنيع</th>
                   <th>الكود</th>
-                  <th>الكمية</th>
+                  <th>الكمية الكبيرة</th>
+                  <th>الوحدة</th>
+                  <th>سعر الوحدة</th>
+                  <th>الكمية الصغيرة</th>
                   <th>الوحدة</th>
                   <th>سعر الوحدة</th>
                   <th>السعر</th>
@@ -699,9 +725,12 @@ function EditInvoiceForm(){
                 ProductID: "",
                 Trademark: "",
                 ManufactureCountry: "",
-                Quantity: "",
-                QuantityUnit: "",
-                UnitPrice: "",
+                LargeQuantity: "",
+                LargeQuantityUnit: "",
+                LargeUnitPrice: "",
+                SmallQuantity: "",
+                SmallQuantityUnit: "",
+                SmallUnitPrice: "",
                 Price: ""
               }} 
             />

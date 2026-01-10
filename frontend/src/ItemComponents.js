@@ -14,10 +14,11 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
   //const [ InitialQuantity, setInitialQuantity ] = useState(ItemsList[Index].Quantity);
   const [ Suggestions, setSuggestions ] = useState([]);
   const [ FilteredSuggestions, setFilteredSuggestions ] = useState([]);
-  const [ Lock, setLock ] = useState([false, false, true]);
+  const [ Chain, setChain ] = useState([false, false, true]);
 
   const Prices = useRef([]);
-  const [ PricesSuggestions, setPricesSuggestions ] = useState([])
+  const [ LargePricesSuggestions, setLargePricesSuggestions ] = useState([]);
+  const [ SmallPricesSuggestions, setSmallPricesSuggestions ] = useState([]);
   const Item = useRef();
 
   const suggestProduct = async (NewItemsList) => {
@@ -63,16 +64,20 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
             response.data.Data[0].Product_ID__Wholesale_Price,
             response.data.Data[0].Product_ID__Retail_Price
           ];
-          let NewPricesSuggestions = [];
+          let NewSmallPricesSuggestions = [];
+          let NewLargePricesSuggestions = [];
           Prices.current.forEach((price, i) => {
             if (price){
-              NewPricesSuggestions.push(
+              NewSmallPricesSuggestions.push(
                 (i === 0 ? "سعر الشراء: " : (i === 1 ? "سعر بيع الجملة: " : "سعر بيع القطاعي: ")) + price
+              );
+              NewLargePricesSuggestions.push(
+                (i === 0 ? "سعر الشراء: " : (i === 1 ? "سعر بيع الجملة: " : "سعر بيع القطاعي: ")) + (price * NewItemsList[Index].ConversionRate)
               );
             }
           })
-          console.log(NewPricesSuggestions);
-          setPricesSuggestions(NewPricesSuggestions);
+          setSmallPricesSuggestions(NewSmallPricesSuggestions);
+          setLargePricesSuggestions(NewLargePricesSuggestions);
         }else{
           console.log(response.data);
         }
@@ -80,7 +85,22 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       .catch((error) => console.log(error))
   }
 
-
+  const CalculateItemPrices = (NewItemsList) => {
+    if (Chain[2]) {
+      NewItemsList[Index].Price = +(
+        NewItemsList[Index].LargeQuantity * NewItemsList[Index].LargeUnitPrice +
+        NewItemsList[Index].SmallQuantity * NewItemsList[Index].SmallUnitPrice
+      ).toFixed(2);
+    } else if (Chain[1]) {
+      let FullQuantity = NewItemsList[Index].LargeQuantity * NewItemsList[Index].ConversionRate + NewItemsList[Index].SmallQuantity;
+      NewItemsList[Index].LargeUnitPrice = +(NewItemsList[Index].Price / FullQuantity * NewItemsList[Index].ConversionRate).toFixed(4);
+      NewItemsList[Index].SmallUnitPrice = +(NewItemsList[Index].Price / FullQuantity).toFixed(4);
+    } else if (Chain[0]) {
+      NewItemsList[Index].LargeQuantity = Math.floor(NewItemsList[Index].Price / NewItemsList[Index].LargeUnitPrice);
+      NewItemsList[Index].SmallQuantity = NewItemsList[Index].Price % NewItemsList[Index].LargeUnitPrice / NewItemsList[Index].SmallUnitPrice;
+    }
+    setItemsList(NewItemsList);
+  }
   useEffect(() => {
     let NewItemsList = [...ItemsList];
     let MatchedSuggestion = FilteredSuggestions.find(suggestion =>
@@ -96,7 +116,9 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
         ProductID: MatchedSuggestion.Product_ID__Product_ID,
         Trademark: MatchedSuggestion.Product_ID__Trademark,
         ManufactureCountry: MatchedSuggestion.Product_ID__Manufacture_Country,
-        QuantityUnit: MatchedSuggestion.Product_ID__Quantity_Unit
+        LargeQuantityUnit: MatchedSuggestion.Product_ID__Large_Quantity_Unit,
+        SmallQuantityUnit: MatchedSuggestion.Product_ID__Small_Quantity_Unit,
+        ConversionRate: MatchedSuggestion.Product_ID__Conversion_Rate
       };
       ExistingQuantities[Index] = MatchedSuggestion.Quantity
     }
@@ -112,8 +134,10 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       ItemsList[Index].ProductID !== NewItemsList[Index].ProductID ||
       ItemsList[Index].Trademark !== NewItemsList[Index].Trademark ||
       ItemsList[Index].ManufactureCountry !== NewItemsList[Index].ManufactureCountry ||
-      ItemsList[Index].Quantity !== NewItemsList[Index].Quantity ||
-      ItemsList[Index].UnitPrice !== NewItemsList[Index].UnitPrice ||
+      ItemsList[Index].LargeQuantity !== NewItemsList[Index].LargeQuantity ||
+      ItemsList[Index].LargeUnitPrice !== NewItemsList[Index].LargeUnitPrice ||
+      ItemsList[Index].SmallQuantity !== NewItemsList[Index].SmallQuantity ||
+      ItemsList[Index].SmallUnitPrice !== NewItemsList[Index].SmallUnitPrice ||
       ItemsList[Index].Price !== NewItemsList[Index].Price
     ) {
       setItemsList(NewItemsList);
@@ -121,26 +145,26 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
   },[Suggestions]);
 
   useEffect(() => {
-    if ( ItemsList[Index].ProductID && ItemsList[Index].Quantity && ItemsList[Index].UnitPrice) {
+    if (
+      ItemsList[Index].ProductID &&
+      (ItemsList[Index].LargeQuantity > 0 || ItemsList[Index].SmallQuantity > 0) &&
+      ItemsList[Index].LargeUnitPrice &&
+      ItemsList[Index].SmallUnitPrice &&
+      ItemsList[Index].Price
+    ) {
       let NewValidationList = [...ValidationChecker];
       NewValidationList[Index] = true;
       setValidationChecker(NewValidationList);
-      
     } else if (
-      !ItemsList[Index].ProductName && !ItemsList[Index].Trademark && !ItemsList[Index].ManufactureCountry
-      && !ItemsList[Index].Quantity && !ItemsList[Index].UnitPrice && !ItemsList[Index].Price
+      !ItemsList[Index].ProductName &&
+      !ItemsList[Index].Trademark &&
+      !ItemsList[Index].ManufactureCountry &&
+      !ItemsList[Index].LargeQuantity &&
+      !ItemsList[Index].SmallQuantity &&
+      !ItemsList[Index].LargeUnitPrice &&
+      !ItemsList[Index].SmallUnitPrice &&
+      !ItemsList[Index].Price
     ) {
-      let NewItemsList = [...ItemsList];
-      NewItemsList[Index] = {
-        ProductName: "",
-        ProductID: "",
-        Trademark: "",
-        ManufactureCountry: "",
-        QuantityUnit: "",
-        Quantity: "",
-        UnitPrice: "",
-        Price: ""
-      };
       let NewValidationList = [...ValidationChecker];
       NewValidationList[Index] = undefined;
       setValidationChecker(NewValidationList);
@@ -167,12 +191,15 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
             NewItemsList[Index] = {
               ...NewItemsList[Index],
               ProductID: "",
-              QuantityUnit: "",
+              LargeQuantityUnit: "",
+              SmallQuantityUnit: "",
+              ConversionRate: "",
               ProductName: event.target.value
             };
             ExistingQuantities[Index] = undefined;
             Prices.current = [];
-            setPricesSuggestions([]);
+            setSmallPricesSuggestions([]);
+            setLargePricesSuggestions([]);
             setItemsList(NewItemsList);
             suggestProduct(NewItemsList);
 
@@ -185,7 +212,9 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
               ProductID: FilteredSuggestions[index].Product_ID__Product_ID,
               Trademark: FilteredSuggestions[index].Product_ID__Trademark,
               ManufactureCountry: FilteredSuggestions[index].Product_ID__Manufacture_Country,
-              QuantityUnit: FilteredSuggestions[index].Product_ID__Quantity_Unit
+              LargeQuantityUnit: FilteredSuggestions[index].Product_ID__Large_Quantity_Unit,
+              SmallQuantityUnit: FilteredSuggestions[index].Product_ID__Small_Quantity_Unit,
+              ConversionRate: FilteredSuggestions[index].Product_ID__Conversion_Rate
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
@@ -204,12 +233,15 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
             NewItemsList[Index] = {
               ...NewItemsList[Index],
               ProductID: "",
-              QuantityUnit: "",
+              LargeQuantityUnit: "",
+              SmallQuantityUnit: "",
+              ConversionRate: "",
               Trademark: event.target.value
             };
             ExistingQuantities[Index] = undefined;
             Prices.current = [];
-            setPricesSuggestions([]);
+            setSmallPricesSuggestions([]);
+            setLargePricesSuggestions([]);
             setItemsList(NewItemsList);
             suggestProduct(NewItemsList);
 
@@ -222,7 +254,9 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
               ProductID: FilteredSuggestions[index].Product_ID__Product_ID,
               Trademark: FilteredSuggestions[index].Product_ID__Trademark,
               ManufactureCountry: FilteredSuggestions[index].Product_ID__Manufacture_Country,
-              QuantityUnit: FilteredSuggestions[index].Product_ID__Quantity_Unit
+              LargeQuantityUnit: FilteredSuggestions[index].Product_ID__Large_Quantity_Unit,
+              SmallQuantityUnit: FilteredSuggestions[index].Product_ID__Small_Quantity_Unit,
+              ConversionRate: FilteredSuggestions[index].Product_ID__Conversion_Rate
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
@@ -241,12 +275,15 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
             NewItemsList[Index] = {
               ...NewItemsList[Index],
               ProductID: "",
-              QuantityUnit: "",
+              LargeQuantityUnit: "",
+              SmallQuantityUnit: "",
+              ConversionRate: "",
               ManufactureCountry: event.target.value
             };
             ExistingQuantities[Index] = undefined;
             Prices.current = [];
-            setPricesSuggestions([]);
+            setSmallPricesSuggestions([]);
+            setLargePricesSuggestions([]);
             setItemsList(NewItemsList);
             suggestProduct(NewItemsList);
 
@@ -259,7 +296,9 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
               ProductID: FilteredSuggestions[index].Product_ID__Product_ID,
               Trademark: FilteredSuggestions[index].Product_ID__Trademark,
               ManufactureCountry: FilteredSuggestions[index].Product_ID__Manufacture_Country,
-              QuantityUnit: FilteredSuggestions[index].Product_ID__Quantity_Unit
+              LargeQuantityUnit: FilteredSuggestions[index].Product_ID__Large_Quantity_Unit,
+              SmallQuantityUnit: FilteredSuggestions[index].Product_ID__Small_Quantity_Unit,
+              ConversionRate: FilteredSuggestions[index].Product_ID__Conversion_Rate
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
@@ -277,9 +316,9 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
         />
       </td>
       <td>
-        <input type="number" value={ItemsList[Index].Quantity}
-          placeholder={ExistingQuantities[Index] !== undefined && "الكمية الموجودة "+ExistingQuantities[Index]}
-          disabled={Lock[0] || (Index > 0 ? !ValidationChecker[Index - 1]: false)}
+        <input type="number" value={ItemsList[Index].LargeQuantity}
+          placeholder={ExistingQuantities[Index] !== undefined && "الكمية الموجودة " + Math.floor(ExistingQuantities[Index] / ItemsList[Index].ConversionRate)}
+          disabled={Chain[0] || (Index > 0 ? !ValidationChecker[Index - 1]: false)}
           className={
             isQuantitySufficient ? "" : "Invalid-field-data"
           }
@@ -287,41 +326,28 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
             setSelectedItemIndex(Index);
           }}
           onChange={(event) => {
-            if (!isQuantitySufficient){ 
-              isQuantitySufficient = true
-            }
-            let Value = event.target.value > 0 ? event.target.value : "";
-            let OtherValues = Lock[1] ? {
-              UnitPrice: ItemsList[Index].Price / Value,
-              Price: ItemsList[Index].Price
-            } : {
-              Price: Value * ItemsList[Index].UnitPrice,
-              UnitPrice: ItemsList[Index].UnitPrice
-            }
+            isQuantitySufficient = true
             let NewItemsList = [...ItemsList];
             NewItemsList[Index] = {
               ...NewItemsList[Index],
-              Quantity: Value,
-              ...OtherValues,
+              LargeQuantity: event.target.value,
             };
-            setItemsList(NewItemsList);
+            CalculateItemPrices(NewItemsList);
           }} 
         />
         <button className="Field-lock" 
           style={
             {
               display: (Index > 0 ? !ValidationChecker[Index - 1] && "none" : ""),
-              backgroundImage: Lock[0] ? LinkURL : BrokenLinkURL
+              backgroundImage: Chain[0] ? LinkURL : BrokenLinkURL
             }
           }
-          onClick={(event) => {
-            Lock[0] ? setLock([false, true, false]): setLock([true, false, false]);
+          onClick={() => {
+            Chain[0] ? setChain([false, true, false]): setChain([true, false, false]);
           }}></button>
       </td>
       <td>
-        <input
-          type="text"
-          value={ItemsList[Index].QuantityUnit}
+        <input type="text" value={ItemsList[Index].LargeQuantityUnit}
           onFocus={() => {
             setSelectedItemIndex(Index);
           }}
@@ -330,62 +356,132 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
         />
       </td>
       <td>
-        <SuggestionsInput Type="number" Value={ItemsList[Index].UnitPrice}
-          Suggestions={PricesSuggestions}
+        <SuggestionsInput Type="number" Value={ItemsList[Index].LargeUnitPrice}
+          Suggestions={LargePricesSuggestions}
           onFocus={() => {
             setSelectedItemIndex(Index);
             if (ItemsList[Index].ProductID)
               suggestPrices(ItemsList);
             else{
               Prices.current = [];
-              setPricesSuggestions([]);
+              setLargePricesSuggestions([]);
+              setSmallPricesSuggestions([]);
             }
           }}
           onChange={(event) => {
-            let Value = event.target.value > 0 ? event.target.value : "";
-            let OtherValues = Lock[0] ? {
-              Quantity: ItemsList[Index].Price / Value,
-              Price: ItemsList[Index].Price
-            } : {
-              Price: Value * ItemsList[Index].Quantity,
-              Quantity: ItemsList[Index].Quantity
-            }
+            let Value = +parseFloat(event.target.value).toFixed(4);
             let NewItemsList = [...ItemsList];
             NewItemsList[Index] = {
               ...NewItemsList[Index],
-              UnitPrice: Value,
-              ...OtherValues,
+              LargeUnitPrice: Value,
+              SmallUnitPrice: Value / NewItemsList[Index].ConversionRate,
             };
-            setItemsList(NewItemsList);
+            CalculateItemPrices(NewItemsList);
           }}
           onSelect={(index) => {
-            let Value = Prices.current[index];
-            let OtherValues = Lock[0] ? {
-              Quantity: ItemsList[Index].Price / Value,
-              Price: ItemsList[Index].Price
-            } : {
-              Price: Value * ItemsList[Index].Quantity,
-              Quantity: ItemsList[Index].Quantity
-            }
             let NewItemsList = [...ItemsList];
             NewItemsList[Index] = {
               ...NewItemsList[Index],
-              UnitPrice: Value,
-              ...OtherValues,
+              LargeUnitPrice: Prices.current[index] * NewItemsList[Index].ConversionRate,
+              SmallUnitPrice: Prices.current[index],
             };
-            setItemsList(NewItemsList);
+            CalculateItemPrices(NewItemsList);
           }}
-          Disabled={Lock[1] || (Index > 0 ? !ValidationChecker[Index - 1]: false)}
+          Disabled={Chain[1] || (Index > 0 ? !ValidationChecker[Index - 1]: false)}
         />
         <button className="Field-lock" 
           style={
             {
               display: (Index > 0 ? !ValidationChecker[Index - 1] && "none" : ""),
-              backgroundImage: Lock[1] ? LinkURL : BrokenLinkURL
+              backgroundImage: Chain[1] ? LinkURL : BrokenLinkURL
             }
           }
-          onClick={(event) => {
-            Lock[1] ? setLock([true, false, false]): setLock([false, true, false]);
+          onClick={() => {
+            Chain[1] ? setChain([true, false, false]): setChain([false, true, false]);
+          }}></button>
+      </td>
+      <td>
+        <input type="number" value={ItemsList[Index].SmallQuantity}
+          placeholder={ExistingQuantities[Index] !== undefined && "الكمية الموجودة " + (ExistingQuantities[Index] % ItemsList[Index].ConversionRate)}
+          disabled={Chain[0] || (Index > 0 ? !ValidationChecker[Index - 1]: false)}
+          className={
+            isQuantitySufficient ? "" : "Invalid-field-data"
+          }
+          onFocus={() => {
+            setSelectedItemIndex(Index);
+          }}
+          onChange={(event) => {
+            isQuantitySufficient = true
+            let NewItemsList = [...ItemsList];
+            NewItemsList[Index] = {
+              ...NewItemsList[Index],
+              SmallQuantity: event.target.value,
+            };
+            CalculateItemPrices(NewItemsList);
+          }} 
+        />
+        <button className="Field-lock" 
+          style={
+            {
+              display: (Index > 0 ? !ValidationChecker[Index - 1] && "none" : ""),
+              backgroundImage: Chain[0] ? LinkURL : BrokenLinkURL
+            }
+          }
+          onClick={() => {
+            Chain[0] ? setChain([false, true, false]): setChain([true, false, false]);
+          }}></button>
+      </td>
+      <td>
+        <input type="text" value={ItemsList[Index].SmallQuantityUnit}
+          onFocus={() => {
+            setSelectedItemIndex(Index);
+          }}
+          disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
+          readOnly
+        />
+      </td>
+      <td>
+        <SuggestionsInput Type="number" Value={ItemsList[Index].SmallUnitPrice}
+          Suggestions={SmallPricesSuggestions}
+          onFocus={() => {
+            setSelectedItemIndex(Index);
+            if (ItemsList[Index].ProductID)
+              suggestPrices(ItemsList);
+            else{
+              Prices.current = [];
+              setLargePricesSuggestions([]);
+              setSmallPricesSuggestions([]);
+            }
+          }}
+          onChange={(event) => {
+            let NewItemsList = [...ItemsList];
+            NewItemsList[Index] = {
+              ...NewItemsList[Index],
+              SmallUnitPrice: +parseFloat(event.target.value).toFixed(4),
+              LargeUnitPrice: +parseFloat(event.target.value * NewItemsList[Index].ConversionRate),
+            };
+            CalculateItemPrices(NewItemsList);
+          }}
+          onSelect={(index) => {
+            let NewItemsList = [...ItemsList];
+            NewItemsList[Index] = {
+              ...NewItemsList[Index],
+              SmallUnitPrice: Prices.current[index],
+              LargeUnitPrice: Prices.current[index] * NewItemsList[Index].ConversionRate,
+            };
+            CalculateItemPrices(NewItemsList);
+          }}
+          Disabled={Chain[1] || (Index > 0 ? !ValidationChecker[Index - 1]: false)}
+        />
+        <button className="Field-lock"
+          style={
+            {
+              display: (Index > 0 ? !ValidationChecker[Index - 1] && "none" : ""),
+              backgroundImage: Chain[1] ? LinkURL : BrokenLinkURL
+            }
+          }
+          onClick={() => {
+            Chain[1] ? setChain([true, false, false]): setChain([false, true, false]);
           }}></button>
       </td>
       <td>
@@ -394,37 +490,27 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
             setSelectedItemIndex(Index);
           }}
           onChange={(event) => {
-            let Value = event.target.value > 0 ? event.target.value : "";
-            let OtherValues = Lock[1] ? {
-              UnitPrice: Value / ItemsList[Index].Quantity,
-              Quantity: ItemsList[Index].Quantity
-            } : {
-              Quantity: Value / ItemsList[Index].UnitPrice,
-              UnitPrice: ItemsList[Index].UnitPrice
-            }
             let NewItemsList = [...ItemsList];
             NewItemsList[Index] = {
               ...NewItemsList[Index],
-              Price: Value,
-              ...OtherValues,
+              Price: +parseFloat(event.target.value).toFixed(2),
             };
-            setItemsList(NewItemsList);
-            //setItemChanged(!ItemChanged);
+            CalculateItemPrices(NewItemsList);
           }}
-          disabled={Lock[2] || (Index > 0 ? !ValidationChecker[Index - 1]: false)}
+          disabled={Chain[2] || (Index > 0 ? !ValidationChecker[Index - 1]: false)}
         />
         <button className="Field-lock" 
           style={
             {
               display: (Index > 0 ? !ValidationChecker[Index - 1] && "none" : ""),
-              backgroundImage: Lock[2] ? LinkURL : BrokenLinkURL
+              backgroundImage: Chain[2] ? LinkURL : BrokenLinkURL
             }
           }
           onFocus={() => {
             setSelectedItemIndex(Index);
           }}
-          onClick={(event) => {
-            Lock[2] ? setLock([false, true, false]): setLock([false, false, true]);
+          onClick={() => {
+            Chain[2] ? setChain([false, true, false]): setChain([false, false, true]);
           }}></button>
       </td>
     </tr>
@@ -481,7 +567,9 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
         ProductID: MatchedSuggestion.Product_ID__Product_ID,
         Trademark: MatchedSuggestion.Product_ID__Trademark,
         ManufactureCountry: MatchedSuggestion.Product_ID__Manufacture_Country,
-        QuantityUnit: MatchedSuggestion.Product_ID__Quantity_Unit
+        LargeQuantityUnit: MatchedSuggestion.Product_ID__Quantity_Unit,
+        SmallQuantityUnit: MatchedSuggestion.Product_ID__Small_Quantity_Unit,
+        ConversionRate: MatchedSuggestion.Product_ID__Conversion_Rate
       };
       ExistingQuantities[Index] = MatchedSuggestion.Quantity
     }
@@ -496,21 +584,22 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
       ItemsList[Index].ProductID !== NewItemsList[Index].ProductID ||
       ItemsList[Index].Trademark !== NewItemsList[Index].Trademark ||
       ItemsList[Index].ManufactureCountry !== NewItemsList[Index].ManufactureCountry ||
-      ItemsList[Index].Quantity !== NewItemsList[Index].Quantity
+      ItemsList[Index].LargeQuantity !== NewItemsList[Index].LargeQuantity,
+      ItemsList[Index].SmallQuantity !== NewItemsList[Index].SmallQuantity
     ) {
       setItemsList(NewItemsList);
     }
   },[Suggestions]);
 
   useEffect(() => {
-    if ( ItemsList[Index].ProductID && ItemsList[Index].Quantity) {
+    if ( ItemsList[Index].ProductID && ItemsList[Index].LargeQuantity && ItemsList[Index].SmallQuantity) {
       let NewValidationList = [...ValidationChecker];
       NewValidationList[Index] = true;
       setValidationChecker(NewValidationList);
       
     } else if (
       !ItemsList[Index].ProductName && !ItemsList[Index].Trademark && !ItemsList[Index].ManufactureCountry
-      && !ItemsList[Index].Quantity
+      && !ItemsList[Index].LargeQuantity && !ItemsList[Index].SmallQuantity
     ) {
       let NewItemsList = [...ItemsList];
       NewItemsList[Index] = {
@@ -518,8 +607,10 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
         ProductID: "",
         Trademark: "",
         ManufactureCountry: "",
-        QuantityUnit: "",
-        Quantity: ""
+        LargeQuantityUnit: "",
+        SmallQuantityUnit: "",
+        ConversionRate: "",
+        LargeQuantity: ""
       };
       let NewValidationList = [...ValidationChecker];
       NewValidationList[Index] = undefined;
@@ -546,7 +637,9 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
             NewItemsList[Index] = {
               ...NewItemsList[Index],
               ProductID: "",
-              QuantityUnit: "",
+              LargeQuantityUnit: "",
+              SmallQuantityUnit: "",
+              ConversionRate: "",
               ProductName: event.target.value
             };
             ExistingQuantities[Index] = undefined;
@@ -561,7 +654,9 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
               ProductID: FilteredSuggestions[index].Product_ID__Product_ID,
               Trademark: FilteredSuggestions[index].Product_ID__Trademark,
               ManufactureCountry: FilteredSuggestions[index].Product_ID__Manufacture_Country,
-              QuantityUnit: FilteredSuggestions[index].Product_ID__Quantity_Unit
+              LargeQuantityUnit: FilteredSuggestions[index].Product_ID__Large_Quantity_Unit,
+              SmallQuantityUnit: FilteredSuggestions[index].Product_ID__Small_Quantity_Unit,
+              ConversionRate: FilteredSuggestions[index].Product_ID__Conversion_Rate
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
@@ -580,7 +675,9 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
             NewItemsList[Index] = {
               ...NewItemsList[Index],
               ProductID: "",
-              QuantityUnit: "",
+              LargeQuantityUnit: "",
+              SmallQuantityUnit: "",
+              ConversionRate: "",
               Trademark: event.target.value
             };
             ExistingQuantities[Index] = undefined;
@@ -595,7 +692,9 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
               ProductID: FilteredSuggestions[index].Product_ID__Product_ID,
               Trademark: FilteredSuggestions[index].Product_ID__Trademark,
               ManufactureCountry: FilteredSuggestions[index].Product_ID__Manufacture_Country,
-              QuantityUnit: FilteredSuggestions[index].Product_ID__Quantity_Unit
+              LargeQuantityUnit: FilteredSuggestions[index].Product_ID__Large_Quantity_Unit,
+              SmallQuantityUnit: FilteredSuggestions[index].Product_ID__Small_Quantity_Unit,
+              ConversionRate: FilteredSuggestions[index].Product_ID__Conversion_Rate
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
@@ -614,7 +713,9 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
             NewItemsList[Index] = {
               ...NewItemsList[Index],
               ProductID: "",
-              QuantityUnit: "",
+              LargeQuantityUnit: "",
+              SmallQuantityUnit: "",
+              ConversionRate: "",
               ManufactureCountry: event.target.value
             };
             ExistingQuantities[Index] = undefined;
@@ -629,7 +730,9 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
               ProductID: FilteredSuggestions[index].Product_ID__Product_ID,
               Trademark: FilteredSuggestions[index].Product_ID__Trademark,
               ManufactureCountry: FilteredSuggestions[index].Product_ID__Manufacture_Country,
-              QuantityUnit: FilteredSuggestions[index].Product_ID__Quantity_Unit
+              LargeQuantityUnit: FilteredSuggestions[index].Product_ID__Large_Quantity_Unit,
+              SmallQuantityUnit: FilteredSuggestions[index].Product_ID__Small_Quantity_Unit,
+              ConversionRate: FilteredSuggestions[index].Product_ID__Conversion_Rate
             };
             setItemsList(NewItemsList);
             ExistingQuantities[Index] = FilteredSuggestions[index].Quantity;
@@ -648,7 +751,7 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
         />
       </td>
       <td>
-        <input type="number" value={ItemsList[Index].Quantity}
+        <input type="number" value={ItemsList[Index].LargeQuantity}
           placeholder={ExistingQuantities[Index] !== undefined && "الكمية الموجودة "+ExistingQuantities[Index]}
           className={ 
             isQuantitySufficient ? "" : "Invalid-field-data"
@@ -658,18 +761,43 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
             setSelectedItemIndex(Index);
           }}
           onChange={(event) => {
-            let Value = event.target.value > 0 ? event.target.value : "";
+            let Value = event.target.value;
             let NewItemsList = [...ItemsList];
             NewItemsList[Index] = {
               ...NewItemsList[Index],
-              Quantity: Value,
+              LargeQuantity: Value,
             };
             setItemsList(NewItemsList);
           }} 
         />
       </td>
       <td>
-        <input type="text" value={ItemsList[Index].QuantityUnit}
+        <input type="text" value={ItemsList[Index].LargeQuantityUnit}
+          onFocus={() => {
+            setSelectedItemIndex(Index);
+          }}
+          readOnly
+        />
+      </td>
+      <td>
+        <input type="number" value={ItemsList[Index].SmallQuantity}
+          disabled={Index > 0 ? !ValidationChecker[Index - 1]: false}
+          onFocus={() => {
+            setSelectedItemIndex(Index);
+          }}
+          onChange={(event) => {
+            let Value = event.target.value;
+            let NewItemsList = [...ItemsList];
+            NewItemsList[Index] = {
+              ...NewItemsList[Index],
+              SmallQuantity: Value,
+            };
+            setItemsList(NewItemsList);
+          }} 
+        />
+      </td>
+      <td>
+        <input type="text" value={ItemsList[Index].SmallQuantityUnit}
           onFocus={() => {
             setSelectedItemIndex(Index);
           }}

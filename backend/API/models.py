@@ -13,10 +13,13 @@ class Products_Table(models.Model):
     Product_Name = models.CharField(max_length=100)
     Trademark = models.CharField(max_length=100)
     Manufacture_Country = models.CharField(max_length=100)
-    Purchase_Price = models.DecimalField(max_digits=10, decimal_places=2)
-    Wholesale_Price = models.DecimalField(max_digits=10, decimal_places=2)
-    Retail_Price = models.DecimalField(max_digits=10, decimal_places=2)
-    Quantity_Unit = models.CharField(max_length=50)
+    Purchase_Price = models.DecimalField(max_digits=10, decimal_places=4)
+    Wholesale_Price = models.DecimalField(max_digits=10, decimal_places=4)
+    Retail_Price = models.DecimalField(max_digits=10, decimal_places=4)
+    Small_Quantity_Unit = models.CharField(max_length=50)
+    Large_Quantity_Unit = models.CharField(max_length=50, blank=True)
+    Conversion_Rate = models.FloatField(default=1.0)
+    Partial_Small_Quantity_Allowed = models.BooleanField(default=False)
 
 class Product_Quantity_Table(models.Model):
     Store_ID = models.ForeignKey('Stores_Table', on_delete=models.CASCADE)
@@ -40,9 +43,10 @@ class Selling_Invoices(models.Model):
 class Selling_Items(models.Model):
     Invoice_ID = models.ForeignKey('Selling_Invoices', on_delete=models.CASCADE)
     Product_ID = models.ForeignKey('Products_Table', on_delete=models.CASCADE)
-    Purchase_Price = models.DecimalField(max_digits=10, decimal_places=2)
+    Purchase_Price = models.DecimalField(max_digits=10, decimal_places=4)
     Quantity = models.FloatField()
-    Unit_Price = models.DecimalField(max_digits=10, decimal_places=2)
+    Convertion_Rate = models.FloatField()
+    Unit_Price = models.DecimalField(max_digits=10, decimal_places=4)
 
 class Purchase_Invoices(models.Model):
     Invoice_ID = models.AutoField(primary_key=True)
@@ -57,7 +61,8 @@ class Purchase_Items(models.Model):
     Invoice_ID = models.ForeignKey('Purchase_Invoices', on_delete=models.CASCADE)
     Product_ID = models.ForeignKey('Products_Table', on_delete=models.CASCADE)
     Quantity = models.FloatField()
-    Unit_Price = models.DecimalField(max_digits=10, decimal_places=2)
+    Convertion_Rate = models.FloatField()
+    Unit_Price = models.DecimalField(max_digits=10, decimal_places=4)
 
 class Transition_Documents(models.Model):
     Document_ID = models.AutoField(primary_key=True)
