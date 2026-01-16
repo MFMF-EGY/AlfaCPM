@@ -20,27 +20,10 @@ function App() {
   const [ FormSelector, setFormSelector] = useState(null);
   const [ ProjectStoreChanged, setProjectStoreChanged ] = useState(false);
   const [ TabNames, setTabNames ] = useState(["MainTableTab"]);
-  const [ TabIndex, setTabIndex ] = useState(1)
 
   useEffect(() => {
 
   }, [ProjectID, StoreID]);
-
-  const changeTab = (TargetTabContent) => {
-    // if (CurrentTabRef.current.current) {
-    //   CurrentTabRef.current.current.classList.remove("Active-tab");
-    // }
-    
-    // if (CurrentTabContentRef.current.current){
-    //   CurrentTabContentRef.current.current.style.display = "none";
-    // }
-
-    // if (!TabContentsRefs[TargetTabContent].current) return;
-    // TabsRefs[TargetTabContent].current.classList.add("Active-tab");
-    // TabContentsRefs[TargetTabContent].current.style.display = "inline-flex";
-    // CurrentTabRef.current = TabsRefs[TargetTabContent];
-    // CurrentTabContentRef.current = TabContentsRefs[TargetTabContent];
-  }
 
   return (
     <GlobalContext.Provider
@@ -63,8 +46,8 @@ function App() {
         </header>
         <main>
           {ProjectID && StoreID && (
-            <Tabs openedTabs={[true,false,false,false,false,false,false]}>
-              <Tab title="القائمة الرئيسية">
+            <Tabs>
+              <Tab title="القائمة الرئيسية" closable={false} opened={true}>
                 <MainTableTabContent />
               </Tab>
               <Tab title="فواتير البيع" closable={true}>
