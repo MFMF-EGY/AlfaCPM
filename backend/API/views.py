@@ -903,10 +903,22 @@ class ProcessRequest:
         del RequestList["FromDateTime"]
         del RequestList["ToDateTime"]
         FilterArguments = FilterArguments | {f+"__contains": RequestList[f] for f in RequestList.keys()}
-        adjustments_list = Products_Quantities_Adjustments.objects.using(DBName).select_related('Product_ID').filter(Store_ID=StoreID, **FilterArguments).values(
-            'Operation_ID', 'DateTime', 'Product_ID__Product_ID', 'Product_ID__Product_Name',
-            'Product_ID__Trademark', 'Product_ID__Manufacture_Country', 'Product_ID__Quantity_Unit',
-            'Operation_Type', 'Quantity', 'Note'
+        adjustments_list = (
+            Products_Quantities_Adjustments.objects.using(DBName)
+            .select_related("Product_ID")
+            .filter(Store_ID=StoreID, **FilterArguments)
+            .values(
+                "Operation_ID",
+                "DateTime",
+                "Product_ID__Product_ID",
+                "Product_ID__Product_Name",
+                "Product_ID__Trademark",
+                "Product_ID__Manufacture_Country",
+                "Product_ID__Small_Quantity_Unit",
+                "Operation_Type",
+                "Quantity",
+                "Note",
+            )
         )
         return {"StatusCode":0,"Data":list(adjustments_list)}
 
@@ -1654,8 +1666,13 @@ class CheckValidation:
     @staticmethod
     def AdjustProductQuantity(RequestList):
         try:
-            ProjectID, StoreID, OperationType, ProductID, Quantity = (RequestList["ProjectID"],
-                RequestList["StoreID"], RequestList["OperationType"], RequestList["ProductID"], RequestList["Quantity"])
+            ProjectID, StoreID, OperationType, ProductID, Quantity = (
+                RequestList["ProjectID"],
+                RequestList["StoreID"],
+                RequestList["OperationType"],
+                RequestList["ProductID"],
+                RequestList["Quantity"],
+            )
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
@@ -1673,8 +1690,12 @@ class CheckValidation:
     @staticmethod
     def SearchAdjustmentOperations(RequestList):
         try:
-            ProjectID, StoreID, FromDateTime, ToDateTime = (RequestList["ProjectID"], RequestList["StoreID"],
-                RequestList["FromDateTime"], RequestList["ToDateTime"])
+            ProjectID, StoreID, FromDateTime, ToDateTime = (
+                RequestList["ProjectID"],
+                RequestList["StoreID"],
+                RequestList["FromDateTime"],
+                RequestList["ToDateTime"],
+            )
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
