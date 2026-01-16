@@ -16,9 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
-import API.views
+import CommercialAPI.views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('apis/v1.0/commercial', API.views.StartRequestProcessing),
+    path('apis/v1.0/commercial', CommercialAPI.views.StartRequestProcessing),
 ]

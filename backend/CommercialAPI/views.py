@@ -8,8 +8,8 @@ import os
 import subprocess
 from datetime import datetime
 from decimal import Decimal
-import API.models as project_db_structure
-from API.models import *
+import CommercialAPI.models as project_db_structure
+from CommercialAPI.models import *
 
 global SELLING_INVOICE_LENGTH, PURCHASE_INVOICE_LENGTH, REFUND_INVOICE_LENGTH, TRANSITION_DOCUMENT_LENGTH
 SELLING_INVOICE_LENGTH = 12

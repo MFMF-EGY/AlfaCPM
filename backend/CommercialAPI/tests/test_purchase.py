@@ -1,9 +1,9 @@
 import pytest
 from django.test import Client
-from API.models import *
+from CommercialAPI.models import *
 
 @pytest.mark.django_db(transaction=True, databases="__all__")
-def test_sell(client: Client, create_test_project, django_db_blocker):
+def test_purchase(client: Client, create_test_project, django_db_blocker):
     ProjectDBName = f"Project{create_test_project}"
     store = Stores_Table(
         Store_Name="Test Store",
@@ -27,16 +27,16 @@ def test_sell(client: Client, create_test_project, django_db_blocker):
     product_quantity = Product_Quantity_Table(
         Store_ID=store,
         Product_ID=product,
-        Quantity=100.0
+        Quantity=0
     )
     product_quantity.save(using=ProjectDBName)
 
     with django_db_blocker.unblock():
         response = client.get('/apis/v1.0/commercial', {
-            'RequestType': 'Sell',
+            'RequestType': 'Purchase',
             'ProjectID': create_test_project,
             'StoreID': store.Store_ID,
-            'ClientName': 'Test Client',
+            'SellerName': 'Test Seller',
             'Items[0][ProductID]': product.Product_ID,
             'Items[0][LargeQuantity]': 1,
             'Items[0][SmallQuantity]': 5,
@@ -45,19 +45,19 @@ def test_sell(client: Client, create_test_project, django_db_blocker):
         })
         assert response.status_code == 200
         assert response.json().get("StatusCode") == 0
-        selling_invoice = Selling_Invoices.objects.using(ProjectDBName).filter(
+        purchase_invoice = Purchase_Invoices.objects.using(ProjectDBName).filter(
             Store_ID=store.Store_ID,
-            Client_Name='Test Client'
+            Seller_Name='Test Seller'
         ).first()
-        assert selling_invoice is not None
-        assert selling_invoice.Total_Price == 150.00
-        assert selling_invoice.Paid == 150.00
-        assert selling_invoice.Transferred_To_Debt_Account == 0.00
-        selling_item = Selling_Items.objects.using(ProjectDBName).filter(
-            Invoice_ID=selling_invoice.Invoice_ID,
+        assert purchase_invoice is not None
+        assert purchase_invoice.Total_Price == 150.00
+        assert purchase_invoice.Paid == 150.00
+        assert purchase_invoice.Deducted_From_Debt_Account == 0.00
+        purchase_item = Purchase_Items.objects.using(ProjectDBName).filter(
+            Invoice_ID=purchase_invoice.Invoice_ID,
             Product_ID=product.Product_ID
         ).first()
-        assert selling_item is not None
-        assert selling_item.Quantity == 15.0  # 1 box (10) + 5 pieces
+        assert purchase_item is not None
+        assert purchase_item.Quantity == 15.0  # 1 box (10) + 5 pieces
         product_quantity.refresh_from_db()
-        assert product_quantity.Quantity == 85.0  # 100 - 15 sold
+        assert product_quantity.Quantity == 15.0

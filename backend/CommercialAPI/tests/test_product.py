@@ -1,6 +1,6 @@
 import pytest
 from django.test import Client
-from API.models import *
+from CommercialAPI.models import *
 
 # TODO: Add tests for error cases.
 # TODO: Adjust tests to cover small quantity and large quantity.

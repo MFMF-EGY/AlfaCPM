@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class ApiConfig(AppConfig):
+class CommercialAPIConfig(AppConfig):
     default_auto_field = 'django.db.models.BigAutoField'
-    name = 'API'
+    name = 'CommercialAPI'

@@ -5,7 +5,7 @@ from django.db import connections
 @pytest.fixture(scope='session', autouse=True)
 def create_test_project(django_db_blocker, request):
     with django_db_blocker.unblock():
-        from API.views import ProcessRequest
+        from CommercialAPI.views import ProcessRequest
         # Creating test project before tests
         TestProjectID = ProcessRequest.CreateProject({"ProjectName":"foo","ProjectDescription":"Test Project"}, Test=True)
         print(f"Created Test Project with ID: {TestProjectID}")
