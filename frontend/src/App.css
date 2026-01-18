@@ -30,15 +30,38 @@ main{
   min-height: 10vh;
   display: flex;
   align-items: center;
-  justify-content: start;
+  justify-content: space-between;
   font-size: calc(10px + 1vmin);
   color: white;
+  padding: 0 20px;
 }
 .Project-title{
   margin: 0px 20px;
 }
 .App-link {
   color: #61dafb;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-left: auto;
+}
+
+.user-info button {
+  background-color: #ff6b6b;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s ease;
+}
+
+.user-info button:hover {
+  background-color: #ff5252;
 }
 
 .Tabs-bar{

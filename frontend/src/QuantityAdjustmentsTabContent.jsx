@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, createContext, useContext, use } from 'react';
 import { TabPanel } from 'react-tabs';
 import axios from 'axios';
-import SuggestionsInput from './SuggestionsInput.js';
-import { GlobalContext } from './App.js';
-import { API_URL } from './App.js';
+import SuggestionsInput from './UiComponents/SuggestionsInput.jsx';
+import { GlobalContext } from './App.jsx';
+import { API_URL } from './App.jsx';
 
 const CurrentDateTime = new Date(Date.now());
 const QuantityAdjustmentsContext = createContext();

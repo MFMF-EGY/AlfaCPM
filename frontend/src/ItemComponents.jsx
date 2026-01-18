@@ -1,10 +1,10 @@
 import { useState, useEffect, useContext, useRef } from "react";
 import axios from "axios";
-import SuggestionsInput from "./SuggestionsInput.js";
+import SuggestionsInput from "./UiComponents/SuggestionsInput.jsx";
 import Link from "./link.ico";
 import BrokenLink from "./broken-link.ico";
-import { GlobalContext } from "./App.js";
-import { API_URL } from "./App.js";
+import { GlobalContext } from "./App.jsx";
+import { API_URL } from "./App.jsx";
 
 const LinkURL = `url(${Link})`;
 const BrokenLinkURL = `url(${BrokenLink})`;

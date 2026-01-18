@@ -1,14 +1,15 @@
-import React, { useState, useEffect, useRef, createContext, useContext, useCallback, use } from 'react';
-import { Tabs, Tab } from "./UiComponents/Tabs.js";
+import React, { useState, useEffect, useRef, createContext, useContext } from 'react';
+import { Tabs, Tab } from "./UiComponents/Tabs.jsx";
 import './App.css';
 import axios from 'axios';
-import MainTableTabContent from './MainTableTabContent.js';
-import ProductsTabContent from './ProductsTabContent.js';
-import SellingTabContent from './SellingTabContent.js';
-import PurchaseTabContent from './PurchaseTabContent.js';
-import TransitionTabContent from './TransitionTabContent.js';
-import DebtsAccountsTabContent from './DebtsAccountsTabContent.js';
-import QuantityAdjustmentsTabContent from './QuantityAdjustmentsTabContent.js';
+import { GoogleOAuthProvider, GoogleLogin } from '@react-oauth/google';
+import MainTableTabContent from './MainTableTabContent.jsx';
+import ProductsTabContent from './ProductsTabContent.jsx';
+import SellingTabContent from './SellingTabContent.jsx';
+import PurchaseTabContent from './PurchaseTabContent.jsx';
+import TransitionTabContent from './TransitionTabContent.jsx';
+import DebtsAccountsTabContent from './DebtsAccountsTabContent.jsx';
+import QuantityAdjustmentsTabContent from './QuantityAdjustmentsTabContent.jsx';
 
 export const API_URL = window.location.protocol+'//'+window.location.hostname+':8000/apis/v1.0/commercial';
 export const GlobalContext = createContext();
@@ -20,75 +21,121 @@ function App() {
   const [ FormSelector, setFormSelector] = useState(null);
   const [ ProjectStoreChanged, setProjectStoreChanged ] = useState(false);
   const [ TabNames, setTabNames ] = useState(["MainTableTab"]);
+  const [ user, setUser ] = useState(null);
+  const [ isLoading, setIsLoading ] = useState(true);
 
+  // Check for stored user session on mount
   useEffect(() => {
+    const storedUser = localStorage.getItem('googleUser');
+    if (storedUser) {
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (error) {
+        console.error('Error parsing stored user:', error);
+        localStorage.removeItem('googleUser');
+      }
+    }
+    setIsLoading(false);
+  }, []);
 
-  }, [ProjectID, StoreID]);
+  const handleLoginSuccess = (credentialResponse) => {
+    console.log(credentialResponse);
+    // Store user data in localStorage
+    localStorage.setItem('googleUser', JSON.stringify(credentialResponse));
+    setUser(credentialResponse);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('googleUser');
+    setUser(null);
+  };
+
+  if (isLoading) {
+    return <div className="App"><div>Loading...</div></div>;
+  }
 
   return (
-    <GlobalContext.Provider
-      value={{
-        StoreID,
-        setStoreID,
-        ProjectID,
-        setProjectID,
-        Tabs: TabNames,
-        setTabs: setTabNames,
-      }}
-    >
-      <div className="App">
-        <header className="App-header">
-          <ProjectStoreSelect
-            value={ProjectStoreChanged}
-            GlobalContext={{ ProjectID, setProjectID, StoreID, setStoreID }}
-            setFormSelector={setFormSelector}
-          />
-        </header>
-        <main>
-          {ProjectID && StoreID && (
-            <Tabs>
-              <Tab title="القائمة الرئيسية" closable={false} opened={true}>
-                <MainTableTabContent />
-              </Tab>
-              <Tab title="فواتير البيع" closable={true}>
-                <SellingTabContent />
-              </Tab>
-              <Tab title="فواتير الشراء" closable={true}>
-                <PurchaseTabContent />
-              </Tab>
-              <Tab title="التحويلات" closable={true}>
-                <TransitionTabContent />
-              </Tab>
-              <Tab title="المنتجات" closable={true}>
-                <ProductsTabContent />
-              </Tab>
-              <Tab title="حسابات الديون" closable={true}>
-                <DebtsAccountsTabContent />
-              </Tab>
-              <Tab title="تعديلات الكميات" closable={true}>
-                <QuantityAdjustmentsTabContent />
-              </Tab>
-            </Tabs>
-          )}
-          <FormsContext.Provider
-            value={{
-              FormSelector,
-              setFormSelector,
-              ProjectStoreChanged,
-              setProjectStoreChanged,
-            }}
-          >
-            {FormSelector === "CreateProjectForm" && <CreateProjectForm />}
-            {FormSelector === "CreateStoreForm" && <CreateStoreForm />}
-          </FormsContext.Provider>
-        </main>
-      </div>
-    </GlobalContext.Provider>
+    <GoogleOAuthProvider clientId="417283093219-tq3ucsnemrskhnp8eavql9bjjrmq775t.apps.googleusercontent.com">
+      <GlobalContext.Provider
+        value={{
+          StoreID,
+          setStoreID,
+          ProjectID,
+          setProjectID,
+          Tabs: TabNames,
+          setTabs: setTabNames,
+          user,
+          setUser,
+          handleLogout,
+        }}
+      >
+        <div className="App">
+          <header className="App-header">
+            <ProjectStoreSelect
+              value={ProjectStoreChanged}
+              GlobalContext={{ ProjectID, setProjectID, StoreID, setStoreID }}
+              setFormSelector={setFormSelector}
+            />
+            {user ? (
+              <div className="user-info">
+                <span>Welcome, {user.credential ? 'User' : 'Guest'}</span>
+                <button onClick={handleLogout}>Logout</button>
+              </div>
+            ) : (
+              <GoogleLogin
+                onSuccess={handleLoginSuccess}
+                onError={() => {
+                  console.log('Login Failed');
+                }}
+              />
+            )}
+          </header>
+          <main>
+            {ProjectID && StoreID && (
+              <Tabs>
+                <Tab title="القائمة الرئيسية" closable={false} opened={true}>
+                  <MainTableTabContent />
+                </Tab>
+                <Tab title="فواتير البيع" closable={true}>
+                  <SellingTabContent />
+                </Tab>
+                <Tab title="فواتير الشراء" closable={true}>
+                  <PurchaseTabContent />
+                </Tab>
+                <Tab title="التحويلات" closable={true}>
+                  <TransitionTabContent />
+                </Tab>
+                <Tab title="المنتجات" closable={true}>
+                  <ProductsTabContent />
+                </Tab>
+                <Tab title="حسابات الديون" closable={true}>
+                  <DebtsAccountsTabContent />
+                </Tab>
+                <Tab title="تعديلات الكميات" closable={true}>
+                  <QuantityAdjustmentsTabContent />
+                </Tab>
+              </Tabs>
+            )}
+            <FormsContext.Provider
+              value={{
+                FormSelector,
+                setFormSelector,
+                ProjectStoreChanged,
+                setProjectStoreChanged,
+              }}
+            >
+              {FormSelector === "CreateProjectForm" && <CreateProjectForm />}
+              {FormSelector === "CreateStoreForm" && <CreateStoreForm />}
+            </FormsContext.Provider>
+          </main>
+        </div>
+      </GlobalContext.Provider>
+    </GoogleOAuthProvider>
   );
 }
 
 
-const ProjectStoreSelect = React.memo(({value, GlobalContext, setFormSelector}) =>{
+const ProjectStoreSelect = React.memo(({ ProjectStoreChanged, GlobalContext, setFormSelector }) =>{
   const { ProjectID, setProjectID } = GlobalContext
   const { StoreID, setStoreID } = GlobalContext;
   const [projects, setProjects] = useState([]);
@@ -106,11 +153,11 @@ const ProjectStoreSelect = React.memo(({value, GlobalContext, setFormSelector}) 
       }
     };
     fetchProjects();
-  }, [value]);
+  }, [ProjectStoreChanged]);
 
   useEffect(() => {
     fetchStores();
-  }, [value, ProjectID]);
+  }, [ProjectStoreChanged, ProjectID]);
 
   const fetchStores = async () => {
     if (ProjectID) {

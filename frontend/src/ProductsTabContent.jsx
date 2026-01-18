@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, createContext, useContext, use } from 'react';
 import axios from 'axios';
-import { GlobalContext } from './App.js';
-import { API_URL } from './App.js';
+import { GlobalContext } from './App.jsx';
+import { API_URL } from './App.jsx';
 
 const ProductsTabContext = createContext();
 

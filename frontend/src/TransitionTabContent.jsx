@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, createContext, useContext, use } from 'react';
 import axios from 'axios';
-import { GlobalContext } from './App.js';
-import { TransitionDocumentItem } from './ItemComponents.js';
-import ItemsListEditor from './ItemsListEditor.js';
-import { API_URL } from './App.js';
-import TransitionDocumentTemplate from './DocumentsTemplates/TransitionDocumentTemplate.js';
+import { GlobalContext } from './App.jsx';
+import { TransitionDocumentItem } from './ItemComponents.jsx';
+import ItemsListEditor from './ItemsListEditor.jsx';
+import { API_URL } from './App.jsx';
+import TransitionDocumentTemplate from './DocumentsTemplates/TransitionDocumentTemplate.jsx';
 
 const CurrentDateTime = new Date(Date.now());
 const TransitionTabContext = createContext();

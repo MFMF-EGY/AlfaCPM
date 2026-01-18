@@ -1,20 +1,20 @@
 import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import axios from 'axios';
-import { GlobalContext } from './App.js';
-import { InvoiceItem } from './ItemComponents.js';
-import ItemsListEditor from './ItemsListEditor.js';
-import SellingInvoiceTemplate from './DocumentsTemplates/SellingInvoiceTemplate.js';
-import { API_URL } from './App.js';
+import { GlobalContext } from './App.jsx';
+import { InvoiceItem } from './ItemComponents.jsx'
+import ItemsListEditor from './ItemsListEditor.jsx';
+import PurchaseInvoiceTemplate from './DocumentsTemplates/PurchaseInvoiceTemplate.jsx';
+import { API_URL } from './App.jsx';
 
 const CurrentDateTime = new Date(Date.now());
-const SellingTabContext = createContext();
+const PurchaseTabContext = createContext();
 
-function SellingTabContent(){
+function PurchaseTabContent(){
   const { ProjectID } = useContext(GlobalContext);
   const { StoreID } = useContext(GlobalContext);
   const [ SearchParam, setSearchParam ] = useState({
     InvoiceID: "",
-    ClientName: "",
+    SellerName: "",
     FromDateTime:
       CurrentDateTime.getFullYear() +
       "-" +
@@ -42,7 +42,7 @@ function SellingTabContent(){
   const DeleteInvoiceButtonRef = useRef(null);
   const PrintInvoiceButtonRef = useRef(null);
   const SelectedRow = useRef(null);
-  
+
   useEffect(() => {
     if (SelectedRow.current){SelectedRow.current.classList.remove("Selected-row");}
     SelectedRow.current = null;
@@ -54,14 +54,13 @@ function SellingTabContent(){
   }, [UpdateTab, ProjectID, StoreID]);
 
   const fetchInvoices = async () => {
-    let RequestParams = {
+    var RequestParams = {
       RequestType:"SearchInvoices",
-      InvoiceType:"Selling",
-      ProjectID:ProjectID,
-      StoreID:StoreID
+      InvoiceType:"Purchase",
+      ProjectID:ProjectID, StoreID:StoreID
     };
     if (SearchParam.InvoiceID){ RequestParams.Invoice_ID = SearchParam.InvoiceID; }
-    if (SearchParam.ClientName){ RequestParams.Seller_Name = SearchParam.SellerName; }
+    if (SearchParam.SellerName){ RequestParams.Seller_Name = SearchParam.SellerName; }
     if (SearchParam.FromDateTime){ RequestParams.FromDateTime = SearchParam.FromDateTime; }
     if (SearchParam.ToDateTime){ RequestParams.ToDateTime = SearchParam.ToDateTime; }
     if (SearchParam.TotalPrice){ RequestParams.Total_Price = SearchParam.TotalPrice; }
@@ -76,10 +75,9 @@ function SellingTabContent(){
         })
       .catch((err)=>{console.log(err)});
   }
-  
   const deleteInvoice = async (InvoiceID) => {
     var RequestParams = {
-      RequestType: "DeleteSellingInvoice",
+      RequestType: "DeletePurchaseInvoice",
       ProjectID: ProjectID, 
       InvoiceID: InvoiceID
     };
@@ -96,7 +94,7 @@ function SellingTabContent(){
   const printInvoice = async (InvoiceID) => {
     var RequestParams = {
       RequestType: "GetInvoice",
-      InvoiceType: "Selling",
+      InvoiceType: "Purchase",
       ProjectID: ProjectID,
       InvoiceID: InvoiceID
     };
@@ -105,7 +103,7 @@ function SellingTabContent(){
         if (!response.data.StatusCode){
           let InvoiceData = response.data.Data;
 
-          let InvoiceTemplate = SellingInvoiceTemplate(InvoiceData);
+          let InvoiceTemplate = PurchaseInvoiceTemplate(InvoiceData);
 
           const printWindow = window.open('', '', 'width=800,height=600');
           printWindow.document.write(InvoiceTemplate);
@@ -119,25 +117,25 @@ function SellingTabContent(){
   }
 
   return(
-    <SellingTabContext.Provider value={{ SearchParam, setSearchParam, UpdateTab, setUpdateTab, InvoicesList,
+    <PurchaseTabContext.Provider value={{ SearchParam, setSearchParam, UpdateTab, setUpdateTab, InvoicesList,
       setInvoicesList, OpendForm, setOpendForm, SelectedRow, EditInvoiceButtonRef, DeleteInvoiceButtonRef, PrintInvoiceButtonRef }}>
       <div className="Main-tab-content">
         <div className="Table-container">
-          <table className="Table" id="Selling-table">
+          <table className="Table" id="Invoices-table">
             <thead>
               <tr>
                 <th>م</th>
                 <th>الكود</th>
-                <th>اسم العميل</th>
+                <th>اسم البائع</th>
                 <th>الوقت والتاريخ</th>
-                <th>المبلغ المطلوب</th>
-                <th>المبلغ المدفوع</th>
-                <th>محول لحساب الدين</th>
+                <th>إجمالي المبلغ</th>
+                <th>المدفوع</th>
+                <th>المخصوم من الحساب</th>
               </tr>
             </thead>
             <tbody>
-              <SellingInvoicesTableBody/>
-            </tbody> 
+              <PurchaseInvoicesTableBody/>
+            </tbody>
           </table>
           {OpendForm === "CreateInvoiceForm" ? <CreateInvoiceForm/> :
            OpendForm === "SearchInvoicesForm" ? <SearchInvoicesForm/> :
@@ -151,16 +149,198 @@ function SellingTabContent(){
             onClick={() => deleteInvoice(SelectedRow.current.children[1].innerText)}>حذف فاتورة</button>
           <button className="Sidebar-button" onClick={() => setOpendForm("SearchInvoicesForm")}>بحث</button>
           <button className="Sidebar-button" onClick={() => printInvoice(SelectedRow.current.children[1].innerText)}
-            ref={PrintInvoiceButtonRef}>طباعة فاتورة</button>  
+            ref={PrintInvoiceButtonRef}>طباعة فاتورة</button>
         </div>
-
       </div>
-    </SellingTabContext.Provider> 
+    </PurchaseTabContext.Provider>
   );
 }
 
+function CreateInvoiceForm(){
+  const { ProjectID, StoreID } = useContext(GlobalContext);
+  const { UpdateTab, setUpdateTab, setOpendForm } = useContext(PurchaseTabContext);
+  const [ Submiting, setSubmiting ] = useState(false);
+  const [ InvoiceInfo, setInvoiceInfo ] = useState({
+    SellerName: "",
+    TotalPrice: "",
+    Paid: ""
+  });
+  const [ ItemsList, setItemsList ] = useState(Array.from({ length: 12 }, () => ({
+    ProductName: "",
+    ProductID: "",
+    Trademark: "",
+    ManufactureCountry: "",
+    LargeQuantity: "",
+    LargeQuantityUnit: "",
+    LargeUnitPrice: "",
+    SmallQuantity: "",
+    SmallQuantityUnit: "",
+    SmallUnitPrice: "",
+    ConversionRate: "",
+    Price: ""
+  })));
+  const [ ValidationChecker, setValidationChecker ] = useState(Array.from({ length: 12 }, () => undefined));
+  const [ SelectedItemIndex, setSelectedItemIndex ] = useState(null);
+  const ExistingQuantities = useRef([]);
+
+  const createInvoice = async () => {
+    setSubmiting(true);
+    var RequestParams = {
+      RequestType: "Purchase",
+      ProjectID: ProjectID,
+      StoreID: StoreID,
+      SellerName: InvoiceInfo.SellerName,
+      Items: ItemsList.map((item) => (item.ProductID !== "" && item.LargeQuantity !== "" && item.SmallQuantity !== "" && item.SmallUnitPrice !== "" ? {
+        ProductID: item.ProductID,
+        LargeQuantity: item.LargeQuantity,
+        SmallQuantity: item.SmallQuantity,
+        UnitPrice: item.SmallUnitPrice,
+      }: null)),
+      Paid: InvoiceInfo.Paid
+    }
+    await axios.get(API_URL, {params: RequestParams})
+      .then((response) => {
+        if (!response.data.StatusCode){
+          setUpdateTab(UpdateTab + 1);
+        }else{
+          console.log(response.data);
+          setSubmiting(false);
+        }
+      })
+      .catch((error) => {
+        setSubmiting(false);
+        console.log(error)
+      })
+  }
+
+  useEffect(() => {
+    InvoiceInfo.TotalPrice = ItemsList.reduce((acc, item) => acc + (Number(item.Price)),0);
+  }, [ItemsList]);
+
+  return(
+    <div className='Form-container'>
+      <div className="Form">
+        <div>
+          <button className="Form-close" onClick={(event) => setOpendForm("")}>X</button>
+        </div>
+        <div>
+          <div>
+            <label>اسم البائع</label>
+            <input type="text"
+            onChange={(event) =>{
+              setInvoiceInfo({
+                ...InvoiceInfo,
+                SellerName: event.target.value
+              });
+            }}/>
+          </div>
+        </div>
+        <div>
+          <table className='Table InputTable'>
+            <thead>
+              <tr>
+                <th>م</th>
+                <th>اسم المنتج</th>
+                <th>العلامة التجارية</th>
+                <th>بلد الصنع</th>
+                <th>الكود</th>
+                <th>الكمية الكبيرة</th>
+                <th>الوحدة</th>
+                <th>سعر الوحدة</th>
+                <th>الكمية الصغيرة</th>
+                <th>الوحدة</th>
+                <th>سعر الوحدة</th>
+                <th>السعر</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ItemsList.map((item, index) => (
+                <InvoiceItem 
+                  ItemsList={ItemsList}
+                  setItemsList={setItemsList}
+                  setSelectedItemIndex={setSelectedItemIndex}
+                  ExistingQuantities={ExistingQuantities.current}
+                  isQuantitySufficient={true}
+                  Index={index}
+                  ValidationChecker={ValidationChecker}
+                  setValidationChecker={setValidationChecker}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div>
+          <ItemsListEditor
+            ItemsList={ItemsList}
+            setItemsList={setItemsList}
+            ExistingQuantities={ExistingQuantities.current}
+            SelectedItemIndex={SelectedItemIndex}
+            setSelectedItemIndex={setSelectedItemIndex}
+            ValidationChecker={ValidationChecker}
+            setValidationChecker={setValidationChecker}
+            ItemFieldsStructure={{
+              ProductName: "",
+              ProductID: "",
+              Trademark: "",
+              ManufactureCountry: "",
+              LargeQuantity: "",
+              LargeQuantityUnit: "",
+              LargeUnitPrice: "",
+              SmallQuantity: "",
+              SmallQuantityUnit: "",
+              SmallUnitPrice: "",
+              ConversionRate: "",
+              Price: ""
+            }} 
+          />
+        </div>
+        <div>
+          <div>
+            <label>المبلغ الكلي</label>
+            <input type="number"
+              value={InvoiceInfo.TotalPrice}
+              readOnly
+            />
+          </div>
+          <div>
+            <label>المدفوع</label>
+            <input
+              type="number"
+              className={InvoiceInfo.Paid > InvoiceInfo.TotalPrice || InvoiceInfo.Paid === 0 || InvoiceInfo.Paid < 0 ? "Invalid-field-data" : ""}
+              value={InvoiceInfo.Paid}
+              onChange={(event) => {
+                setInvoiceInfo({
+                  ...InvoiceInfo,
+                  Paid: event.target.value
+                });
+              }}
+            />
+          </div>
+          <div>
+            <label>المخصوم من الحساب</label>
+            <input type="number"
+              value={InvoiceInfo.TotalPrice - InvoiceInfo.Paid}
+              readOnly
+            />
+          </div>
+        </div>
+        <div>
+          <button
+            className="Form-submit"
+            onClick={(event) => createInvoice(event)}
+            disabled={
+              Submiting || ValidationChecker.includes(false) || !ValidationChecker.includes(true) || InvoiceInfo.SellerName === "" || InvoiceInfo.Paid === "" ||
+              InvoiceInfo.Paid <= 0 || InvoiceInfo.Paid > InvoiceInfo.TotalPrice
+            }
+          >إنشاء</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function SearchInvoicesForm(){
-  const { SearchParam, setSearchParam, UpdateTab, setUpdateTab, setOpendForm } = useContext(SellingTabContext);
+  const { SearchParam, setSearchParam, UpdateTab, setUpdateTab, setOpendForm } = useContext(PurchaseTabContext);
   const InvoiceIDFieldRef = useRef();
   const SellerNameFieldRef = useRef();
   const FromDateTimeFieldRef = useRef();
@@ -169,63 +349,64 @@ function SearchInvoicesForm(){
   const PaidFieldRef = useRef();
 
   const SearchInvoices = () => {
-    let From_Date_Time = new Date(FromDateTimeFieldRef.current.value);
-    let To_Date_Time = new Date(ToDateTimeFieldRef.current.value);
+    let FromDateTime = new Date(FromDateTimeFieldRef.current.value);
+    let ToDateTime = new Date(ToDateTimeFieldRef.current.value);
     setSearchParam({
       InvoiceID: InvoiceIDFieldRef.current.value,
       SellerName: SellerNameFieldRef.current.value,
       FromDateTime:
-        From_Date_Time.getFullYear() +
+        FromDateTime.getFullYear() +
         "-" +
-        (From_Date_Time.getMonth() + 1)
+        (FromDateTime.getMonth() + 1)
           .toString()
           .padStart(2, "0") +
         "-" +
-        From_Date_Time
+        FromDateTime
           .getDate()
           .toString()
           .padStart(2, "0") +
         "T" +
-        From_Date_Time
+        FromDateTime
           .getHours()
           .toString()
           .padStart(2, "0") +
         ":" +
-        From_Date_Time
+        FromDateTime
           .getMinutes()
           .toString()
           .padStart(2, "0") +
         ":" +
-        From_Date_Time
+        FromDateTime
           .getSeconds()
           .toString()
           .padStart(2, "0"),
       ToDateTime: 
-        To_Date_Time.getFullYear() +
+        ToDateTime.getFullYear() +
         "-" +
-        (To_Date_Time.getMonth() + 1)
+        (ToDateTime.getMonth() + 1)
           .toString()
           .padStart(2, "0") +
         "-" +
-        To_Date_Time
+        ToDateTime
           .getDate()
           .toString()
           .padStart(2, "0") +
         "T" +
-        To_Date_Time
+        ToDateTime
           .getHours()
           .toString()
           .padStart(2, "0") +
         ":" +
-        To_Date_Time
+        ToDateTime
           .getMinutes()
           .toString()
           .padStart(2, "0") +
         ":" +
-        To_Date_Time
+        ToDateTime
           .getSeconds()
           .toString()
           .padStart(2, "0"),
+
       TotalPrice: TotalPriceFieldRef.current.value,
       Paid: PaidFieldRef.current.value,
     });
@@ -235,7 +416,7 @@ function SearchInvoicesForm(){
     <div className='Form-container'>
       <div className="Form">
         <div>
-          <button className="Form-close" onClick={() => setOpendForm("")}>X</button>
+          <button className="Form-close" onClick={(event) => setOpendForm("")}>X</button>
         </div>
         <div>
           <label>الكود</label>
@@ -269,238 +450,16 @@ function SearchInvoicesForm(){
   )
 }
 
-function CreateInvoiceForm(){
-  const { ProjectID, StoreID } = useContext(GlobalContext);
-  const { UpdateTab, setUpdateTab, setOpendForm } = useContext(SellingTabContext);
-  const [ Submiting, setSubmiting ] = useState(false);
-  const [ InvoiceInfo, setInvoiceInfo ] = useState({
-    SellerName: "",
-    TotalPrice: "",
-    Paid: "",
-    TransferredToAccount: ""
-  });
-  const [ ItemsList, setItemsList ] = useState(Array.from({ length: 12 }, () => ({
-    ProductName: "",
-    ProductID: "",
-    Trademark: "",
-    ManufactureCountry: "",
-    LargeQuantity: "",
-    LargeQuantityUnit: "",
-    LargeUnitPrice: "",
-    SmallQuantity: "",
-    SmallQuantityUnit: "",
-    SmallUnitPrice: "",
-    Price: ""
-  })));
-  const [ ValidationChecker, setValidationChecker ] = useState(Array.from({ length: 12 }, () => undefined));
-  const [ SelectedItemIndex, setSelectedItemIndex ] = useState(null);
-  const ExistingQuantities = useRef([]);
-  const InsufficientQuantityProducts = useRef([]);
-
-  const fetchExistingQuantites = async (ItemsList) => {
-    let RequestParams = {
-      RequestType: "GetProductsQuantities",
-      ProjectID: ProjectID,
-      StoreID: StoreID,
-    }
-    let ProductIDs = ItemsList.map((item) => item.ProductID);
-    for (let i = 0; i < ProductIDs.length; i++){
-      RequestParams[`ProductsIDs[${i}]`] = ProductIDs[i] ? ProductIDs[i] : undefined;
-    }
-    await axios.get(API_URL, {params: RequestParams})
-      .then((response) => {
-        if (!response.data.StatusCode){
-          ExistingQuantities.current = response.data.Data;
-        }else{
-          console.log(response.data);
-        }
-      })
-      .catch((error) => {
-        console.log(error);
-      })
-  }
-
-  const createInvoice = async () => {
-    setSubmiting(true);
-    var RequestParams = {
-      RequestType: "Sell",
-      ProjectID: ProjectID,
-      StoreID: StoreID,
-      ClientName: InvoiceInfo.SellerName,
-      Items: ItemsList.map((item) => (item.ProductID !== "" && (item.LargeQuantity !== "" || item.SmallQuantity !== "") && (item.LargeUnitPrice !== "" || item.SmallUnitPrice !== "") ? {
-        ProductID: item.ProductID,
-        LargeQuantity: item.LargeQuantity,
-        SmallQuantity: item.SmallQuantity,
-        UnitPrice: item.SmallUnitPrice,
-      }: null)),
-      Paid: InvoiceInfo.Paid
-    }
-    await axios.get(API_URL, {params: RequestParams})
-      .then((response) => {
-        if (!response.data.StatusCode){
-          setUpdateTab(UpdateTab + 1);
-        } else if (response.data.StatusCode === 6){
-          InsufficientQuantityProducts.current = response.data.ProductsIDs;
-          fetchExistingQuantites(ItemsList);
-          setSubmiting(false);
-          alert("كميات غير متوفرة");
-        }else{
-          setSubmiting(false);
-          console.log(response.data);
-        }
-      })
-      .catch((error) => {
-        setSubmiting(false);
-        console.log(error)
-      })
-  }
-
-  useEffect(() => {
-    InvoiceInfo.TotalPrice = ItemsList.reduce((acc, item) => acc + (Number(item.Price)),0);
-    InvoiceInfo.TransferredToAccount = InvoiceInfo.TotalPrice - InvoiceInfo.Paid;
-  }, [ItemsList]);
-    
-  return(
-    <div className='Form-container'>
-      <div className="Form">
-        <div>
-          <button className="Form-close" onClick={() => setOpendForm("")}>X</button>
-        </div>
-        <div>
-          <div>
-            <label>اسم العميل</label>
-            <input type="text" 
-              onChange={(event) =>{
-                setInvoiceInfo({
-                  ...InvoiceInfo,
-                  SellerName: event.target.value
-                });
-              }}
-            />
-          </div>
-        </div>
-        <div>
-          <table className='Table InputTable'>
-            <thead>
-              <tr>
-                <th>م</th>
-                <th>اسم المنتج</th>
-                <th>العلامة التجارية</th>
-                <th>بلد التصنيع</th>
-                <th>الكود</th>
-                <th>الكمية الكبيرة</th>
-                <th>الوحدة الكبيرة</th>
-                <th>سعر الوحدة</th>
-                <th>الكمية الصغيرة</th>
-                <th>الوحدة الصغيرة</th>
-                <th>سعر الوحدة</th>
-                <th>السعر</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ItemsList.map((item, index) => (
-                <InvoiceItem 
-                  ItemsList={ItemsList}
-                  setItemsList={setItemsList}
-                  setSelectedItemIndex={setSelectedItemIndex}
-                  ExistingQuantities={ExistingQuantities.current}
-                  isQuantitySufficient={!InsufficientQuantityProducts.current.some((product) => Number(product) === item.ProductID)}
-                  Index={index}
-                  ValidationChecker={ValidationChecker}
-                  setValidationChecker={setValidationChecker}
-                />
-              ))}
-            </tbody>
-          </table>
-        </div>
-        <div>
-          <ItemsListEditor
-            ItemsList={ItemsList}
-            setItemsList={setItemsList}
-            ExistingQuantities={ExistingQuantities.current}
-            SelectedItemIndex={SelectedItemIndex}
-            setSelectedItemIndex={setSelectedItemIndex}
-            ValidationChecker={ValidationChecker}
-            setValidationChecker={setValidationChecker}
-            ItemFieldsStructure={{
-              ProductName: "",
-              ProductID: "",
-              Trademark: "",
-              ManufactureCountry: "",
-              LargeQuantity: "",
-              LargeQuantityUnit: "",
-              LargeUnitPrice: "",
-              SmallQuantity: "",
-              SmallQuantityUnit: "",
-              SmallUnitPrice: "",
-              Price: ""
-            }} 
-          />
-        </div>
-        <div>
-          <div>
-            <label>اجمالي المبلغ</label>
-            <input type="number"
-              value={InvoiceInfo.TotalPrice} 
-              readOnly
-            />
-          </div>
-          <div>
-            <label>المدفوع</label>
-            <input
-              type="number"
-              className={InvoiceInfo.Paid > InvoiceInfo.TotalPrice || InvoiceInfo.Paid < 0 ? "Invalid-field-data" : ""}
-              value={InvoiceInfo.Paid}
-              onChange={(event) => {
-                setInvoiceInfo({
-                  ...InvoiceInfo,
-                  Paid: event.target.value,
-                  TransferredToAccount: InvoiceInfo.TotalPrice - event.target.value
-                });
-              }}
-            />
-          </div>
-          <div>
-            <label>محول لحساب الدين</label>
-            <input
-              type="number"
-              className={InvoiceInfo.TransferredToAccount > InvoiceInfo.TotalPrice || InvoiceInfo.TransferredToAccount < 0 ? "Invalid-field-data" : ""}
-              value={InvoiceInfo.TransferredToAccount}
-              onChange={(event) => {
-                setInvoiceInfo({
-                  ...InvoiceInfo,
-                  TransferredToAccount: event.target.value,
-                  Paid: InvoiceInfo.TotalPrice - event.target.value
-                });
-              }}
-            />
-          </div>
-        </div>
-        <div>
-          <button
-            className="Form-submit"
-            onClick={(event) => createInvoice(event)}
-            disabled={
-              Submiting || ValidationChecker.includes(false) || !ValidationChecker.includes(true) || InvoiceInfo.SellerName === "" || InvoiceInfo.Paid === "" ||
-              InvoiceInfo.TransferredToAccount === "" || InvoiceInfo.Paid > InvoiceInfo.TotalPrice || InvoiceInfo.TransferredToAccount > InvoiceInfo.TotalPrice
-            }
-          >إنشاء</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function EditInvoiceForm(){
   const { ProjectID, StoreID } = useContext(GlobalContext);
-  const { UpdateTab, setUpdateTab, setOpendForm, SelectedRow } = useContext(SellingTabContext);
+  const { UpdateTab, setUpdateTab, CreateInvoiceFormRef, setOpendForm, SelectedRow } = useContext(PurchaseTabContext);
   const [ Loading , setLoading ] = useState(true);
   const [ Submiting, setSubmiting ] = useState(false);
   const [ InvoiceInfo, setInvoiceInfo ] = useState({
+    InvoiceID: "",
     SellerName: "",
     TotalPrice: "",
-    Paid: "",
-    TransferredToAccount: ""
+    Paid: ""
   });
   const [ ItemsList, setItemsList ] = useState(Array.from({ length: 12 }, () => ({
     ProductName: "",
@@ -519,19 +478,18 @@ function EditInvoiceForm(){
   const [ ValidationChecker, setValidationChecker ] = useState(Array.from({ length: 12 }, () => undefined));
   const [ SelectedItemIndex, setSelectedItemIndex ] = useState(null);
   const ExistingQuantities = useRef([]);
-  const InsufficientQuantityProducts = useRef([]);
 
   const fetchInvoice = async () => {
     var RequestParams = {
       RequestType: "GetInvoice",
-      InvoiceType: "Selling",
+      InvoiceType: "Purchase",
       ProjectID: ProjectID,
       InvoiceID: SelectedRow.current.children[1].innerText
     }
     await axios.get(API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
-          let NewItemsList = Array.from({ length: 12 }, () => ({
+          let ItemsList = Array.from({ length: 12 }, () => ({
             ProductName: "",
             ProductID: "",
             Trademark: "",
@@ -546,32 +504,31 @@ function EditInvoiceForm(){
             Price: ""
           }));
           response.data.Data.Items.forEach((item, index) => {
-            NewItemsList[index] = {
+            ItemsList[index] = {
               ProductName: item.Product_ID__Product_Name,
               ProductID: item.Product_ID__Product_ID,
               Trademark: item.Product_ID__Trademark,
               ManufactureCountry: item.Product_ID__Manufacture_Country,
               LargeQuantity: Math.floor(item.Quantity / item.Product_ID__Conversion_Rate),
               LargeQuantityUnit: item.Product_ID__Large_Quantity_Unit,
-              LargeUnitPrice: (item.Unit_Price * item.Product_ID__Conversion_Rate).toFixed(4),
+              LargeUnitPrice: item.Unit_Price * item.Product_ID__Conversion_Rate,
               SmallQuantity: item.Quantity % item.Product_ID__Conversion_Rate,
               SmallQuantityUnit: item.Product_ID__Small_Quantity_Unit,
-              SmallUnitPrice: (+item.Unit_Price).toFixed(4),
+              SmallUnitPrice: item.Unit_Price,
               ConversionRate: item.Product_ID__Conversion_Rate,
-              Price: (item.Quantity * item.Unit_Price).toFixed(2)
+              Price: (item.Quantity * item.Unit_Price).toFixed(2),
             }
           });
-          setItemsList(NewItemsList);
+          setItemsList(ItemsList);
           setValidationChecker(Array.from({ length: 12 }, (_, index) => index < response.data.Data.Items.length ? true : undefined));
           setInvoiceInfo({
             InvoiceID: response.data.Data.Invoice_ID,
-            ClientName: response.data.Data.Client_Name,
+            SellerName: response.data.Data.Seller_Name,
             TotalPrice: response.data.Data.Total_Price,
             Paid: response.data.Data.Paid,
-            TransferredToAccount: response.data.Data.Transferred_To_Account
           });
-          fetchExistingQuantites(NewItemsList);
-        }else{
+          fetchExistingQuantites(ItemsList);
+        } else {
           console.log(response.data);
           setLoading("error");
         }
@@ -582,13 +539,14 @@ function EditInvoiceForm(){
       })
   }
 
-  const fetchExistingQuantites = async (NewItemsList) => {
+  const fetchExistingQuantites = async (ItemsList) => {
     let RequestParams = {
       RequestType: "GetProductsQuantities",
       ProjectID: ProjectID,
       StoreID: StoreID,
     }
-    let ProductIDs = NewItemsList.map((item) => item.ProductID);
+    let ProductIDs = ItemsList.map((item) => item.ProductID);
+    console.log(ProductIDs);
     for (let i = 0; i < ProductIDs.length; i++){
       RequestParams[`ProductsIDs[${i}]`] = ProductIDs[i] ? ProductIDs[i] : undefined;
     }
@@ -611,11 +569,11 @@ function EditInvoiceForm(){
   const editInvoice = async () => {
     setSubmiting(true);
     var RequestParams = {
-      RequestType: "EditSellingInvoice",
+      RequestType: "EditPurchaseInvoice",
       ProjectID: ProjectID,
       InvoiceID: InvoiceInfo.InvoiceID,
-      ClientName: InvoiceInfo.ClientName,
-      Items: ItemsList.map((item) => (item.ProductID !== "" && (item.LargeQuantity !== "" || item.SmallQuantity !== "") && (item.LargeUnitPrice !== "" || item.SmallUnitPrice !== "") ? {
+      SellerName: InvoiceInfo.SellerName,
+      Items: ItemsList.map((item) => (item.ProductID !== "" && item.LargeQuantity !== "" && item.SmallQuantity !== "" && item.SmallUnitPrice !== "" ? {
         ProductID: item.ProductID,
         LargeQuantity: item.LargeQuantity,
         SmallQuantity: item.SmallQuantity,
@@ -627,11 +585,6 @@ function EditInvoiceForm(){
       .then((response) => {
         if (!response.data.StatusCode){
           setUpdateTab(UpdateTab + 1);
-        } else if (response.data.StatusCode === 6){
-          InsufficientQuantityProducts.current = response.data.ProductsIDs;
-          fetchExistingQuantites(ItemsList);
-          setSubmiting(false);
-          alert("كميات غير متوفرة");
         }else{
           setSubmiting(false);
           console.log(response.data);
@@ -639,21 +592,20 @@ function EditInvoiceForm(){
       })
       .catch((error) => {
         setSubmiting(false);
-        console.log(error)
+        console.log(error);
       })
   }
   
   useEffect(() => {
     InvoiceInfo.TotalPrice = ItemsList.reduce((acc, item) => acc + (Number(item.Price)),0);
-    InvoiceInfo.TransferredToAccount = InvoiceInfo.TotalPrice - InvoiceInfo.Paid;
   }, [ItemsList]);
 
   useEffect(() => {
     fetchInvoice();
-  },[])
+  }, [])
 
   return(
-    <div className='Form-container'>
+    <div className='Form-container' ref={CreateInvoiceFormRef}>
       <div className="Form">
         <div>
           <button className="Form-close" onClick={(event) => setOpendForm("")}>X</button>
@@ -666,13 +618,12 @@ function EditInvoiceForm(){
               <input type="text" value={InvoiceInfo.InvoiceID} readOnly />
             </div>
             <div>
-              <label>اسم العميل</label>
-              <input type="text" 
-                value={InvoiceInfo.ClientName}
+              <label>اسم البائع</label>
+              <input type="text" value={InvoiceInfo.SellerName}
                 onChange={(event) =>{
                   setInvoiceInfo({
                     ...InvoiceInfo,
-                    ClientName: event.target.value
+                    SellerName: event.target.value
                   });
                 }}
               />
@@ -681,11 +632,11 @@ function EditInvoiceForm(){
           <div>
             <table className='Table InputTable'>
               <thead>
-                <tr>
+                  <tr>
                   <th>م</th>
                   <th>اسم المنتج</th>
                   <th>العلامة التجارية</th>
-                  <th>بلد التصنيع</th>
+                  <th>بلد الصنع</th>
                   <th>الكود</th>
                   <th>الكمية الكبيرة</th>
                   <th>الوحدة</th>
@@ -698,12 +649,12 @@ function EditInvoiceForm(){
               </thead>
               <tbody>
                 {ItemsList.map((item, index) => (
-                  <InvoiceItem
+                  <InvoiceItem 
                     ItemsList={ItemsList}
                     setItemsList={setItemsList}
-                    setSelectedItemIndex={setSelectedItemIndex} 
+                    setSelectedItemIndex={setSelectedItemIndex}
                     ExistingQuantities={ExistingQuantities.current}
-                    isQuantitySufficient={!InsufficientQuantityProducts.current.some((product) => Number(product) === item.ProductID)}
+                    isQuantitySufficient={true}
                     Index={index}
                     ValidationChecker={ValidationChecker}
                     setValidationChecker={setValidationChecker}
@@ -718,6 +669,7 @@ function EditInvoiceForm(){
               setItemsList={setItemsList}
               ExistingQuantities={ExistingQuantities.current}
               SelectedItemIndex={SelectedItemIndex}
+              setSelectedItemIndex={setSelectedItemIndex}
               ValidationChecker={ValidationChecker}
               setValidationChecker={setValidationChecker}
               ItemFieldsStructure={{
@@ -731,44 +683,33 @@ function EditInvoiceForm(){
                 SmallQuantity: "",
                 SmallQuantityUnit: "",
                 SmallUnitPrice: "",
+                ConversionRate: "",
                 Price: ""
               }} 
             />
           </div>
           <div>
             <div>
-              <label>اجمالي المبلغ</label>
+              <label>المبلغ الكلي</label>
               <input type="number" value={InvoiceInfo.TotalPrice} readOnly/>
             </div>
             <div>
               <label>المدفوع</label>
-              <input
+              <input 
                 type="number"
-                className={InvoiceInfo.Paid > InvoiceInfo.TotalPrice || InvoiceInfo.Paid < 0 ? "Invalid-field-data" : ""}
+                className={InvoiceInfo.Paid > InvoiceInfo.TotalPrice || InvoiceInfo.Paid === 0 || InvoiceInfo.Paid < 0 ? "Invalid-field-data" : ""}
                 value={InvoiceInfo.Paid}
                 onChange={(event) => {
                   setInvoiceInfo({
                     ...InvoiceInfo,
-                    Paid: event.target.value,
-                    TransferredToAccount: InvoiceInfo.TotalPrice - event.target.value
+                    Paid: event.target.value
                   });
                 }}
               />
             </div>
             <div>
-              <label>محول لحساب الدين</label>
-              <input
-                type="number"
-                className={InvoiceInfo.TransferredToAccount > InvoiceInfo.TotalPrice || InvoiceInfo.TransferredToAccount < 0 ? "Invalid-field-data" : ""}
-                value={InvoiceInfo.TransferredToAccount}
-                onChange={(event) => {
-                  setInvoiceInfo({
-                    ...InvoiceInfo,
-                    TransferredToAccount: event.target.value,
-                    Paid: InvoiceInfo.TotalPrice - event.target.value
-                  });
-                }}
-              />
+              <label>المخصوم من الحساب</label>
+              <input type="number" value={InvoiceInfo.TotalPrice - InvoiceInfo.Paid} readOnly/>
             </div>
           </div>
           <div>
@@ -776,8 +717,8 @@ function EditInvoiceForm(){
               className="Form-submit"
               onClick={() => editInvoice()}
               disabled={
-                Submiting || ValidationChecker.includes(false) || !ValidationChecker.includes(true) || InvoiceInfo.ClientName === "" || InvoiceInfo.Paid === "" ||
-                InvoiceInfo.TransferredToAccount === "" || InvoiceInfo.Paid > InvoiceInfo.TotalPrice || InvoiceInfo.TransferredToAccount > InvoiceInfo.TotalPrice
+                Submiting || ValidationChecker.includes(false) || !ValidationChecker.includes(true) || InvoiceInfo.SellerName === "" || InvoiceInfo.Paid === "" ||
+                InvoiceInfo.Paid <= 0 || InvoiceInfo.Paid > InvoiceInfo.TotalPrice
               }
             >تعديل</button>
           </div>
@@ -788,8 +729,8 @@ function EditInvoiceForm(){
   )
 }
 
-function SellingInvoicesTableBody(){
-  const { InvoicesList, SelectedRow, EditInvoiceButtonRef, DeleteInvoiceButtonRef, PrintInvoiceButtonRef } = useContext(SellingTabContext);
+function PurchaseInvoicesTableBody(){
+  const { InvoicesList, SelectedRow, EditInvoiceButtonRef, DeleteInvoiceButtonRef, PrintInvoiceButtonRef } = useContext(PurchaseTabContext);
   const selectRow = (event) => {
     if (SelectedRow.current){SelectedRow.current.classList.remove("Selected-row");}
     SelectedRow.current = event.currentTarget;
@@ -804,13 +745,13 @@ function SellingInvoicesTableBody(){
       <tr onClick={(event)=>selectRow(event)}>
         <td>{index + 1}</td>
         <td>{invoice.Invoice_ID}</td>
-        <td>{invoice.Client_Name}</td>
+        <td>{invoice.Seller_Name}</td>
         <td>{invoice.DateTime}</td>
         <td>{invoice.Total_Price}</td>
         <td>{invoice.Paid}</td>
-        <td>{invoice.Transferred_To_Debt_Account}</td>
+        <td>{invoice.Deducted_From_Debt_Account}</td>
       </tr>
     ))
   );
 }
-export default SellingTabContent;
+export default PurchaseTabContent;

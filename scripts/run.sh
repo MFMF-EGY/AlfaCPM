@@ -86,7 +86,7 @@ tmux set -g mouse on
 tmux split-window -h -t alfacpm
 # Start the backend and frontend services in tmux panes.
 tmux send-keys -t alfacpm:0.0 "echo 'Starting backend server...' && python3 ../backend/manage.py runserver 0.0.0.0:8000" Enter
-tmux send-keys -t alfacpm:0.1 "echo 'Starting frontend server...' && cd ../frontend && npm start" Enter
+tmux send-keys -t alfacpm:0.1 "echo 'Starting frontend server...' && cd ../frontend && npm run dev" Enter
 tmux attach -t alfacpm
 
 # TODO: Uncomment the following lines and add option to run them as services.
