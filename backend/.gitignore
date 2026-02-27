@@ -1,4 +1,5 @@
 # Ignore Python cache and compiled files
+.env
 __pycache__/
 **/__pycache__/
 *.py[cod]

@@ -1,0 +1,76 @@
+.LoginButton {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.LoginButton:hover {
+  background-color: var(--button-hover-bgcolor);
+}
+
+.RegisterButton {
+  background-color: white;
+  color: #007bff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px;
+  margin-inline-start: 0.5rem;
+}
+.RegisterButton:hover {
+  background-color: var(--button-hover-bgcolor);
+  color: white;
+}
+
+.ProfileDropdownContainer {
+  padding: 0.25rem 0.5rem;
+  border-radius: 50vh;
+  transition: background-color 0.3s;
+}
+.ProfileDropdownContainer:hover {
+  background-color: #f1f1f150;
+}
+.ProfileDropdown {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  background: none;
+  border: none;
+  color: white;
+}
+.ProfileDropdown img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+}
+.ProfileDropdown span {
+  font-weight: bold;
+  font-size: 16px;
+  margin-inline-start: 0.5rem;
+}
+
+.DropdownMenu {
+  position: absolute;
+  padding: 0px;
+  top: 60px;
+  right: 10px;
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.15);
+  z-index: 1000;
+}
+.DropdownMenu li {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  color: black;
+  list-style-type: none;
+}
+.DropdownMenu li:hover {
+  background-color: #f1f1f1;
+}

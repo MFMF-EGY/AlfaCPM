@@ -4,7 +4,7 @@ import SuggestionsInput from "./UiComponents/SuggestionsInput.jsx";
 import Link from "./link.ico";
 import BrokenLink from "./broken-link.ico";
 import { GlobalContext } from "./App.jsx";
-import { API_URL } from "./App.jsx";
+import { COMMERCIAL_API_URL } from "./App.jsx";
 
 const LinkURL = `url(${Link})`;
 const BrokenLinkURL = `url(${BrokenLink})`;
@@ -39,7 +39,7 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
     if (NewItemsList[Index].ManufactureCountry){
       RequestParams.Product_ID__Manufacture_Country = NewItemsList[Index].ManufactureCountry;
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           setSuggestions(response.data.Data);
@@ -56,7 +56,7 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       StoreID: StoreID,
       Product_ID__Product_ID: NewItemsList[Index].ProductID
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           Prices.current = [
@@ -541,7 +541,7 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
     if (NewItemsList[Index].ManufactureCountry){
       RequestParams.Product_ID__Manufacture_Country = NewItemsList[Index].ManufactureCountry;
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           setSuggestions(response.data.Data);

@@ -4,7 +4,7 @@ import { GlobalContext } from './App.jsx';
 import { InvoiceItem } from './ItemComponents.jsx';
 import ItemsListEditor from './ItemsListEditor.jsx';
 import SellingInvoiceTemplate from './DocumentsTemplates/SellingInvoiceTemplate.jsx';
-import { API_URL } from './App.jsx';
+import { COMMERCIAL_API_URL } from './App.jsx';
 
 const CurrentDateTime = new Date(Date.now());
 const SellingTabContext = createContext();
@@ -66,7 +66,7 @@ function SellingTabContent(){
     if (SearchParam.ToDateTime){ RequestParams.ToDateTime = SearchParam.ToDateTime; }
     if (SearchParam.TotalPrice){ RequestParams.Total_Price = SearchParam.TotalPrice; }
     if (SearchParam.Paid){ RequestParams.Paid = SearchParam.Paid; }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then(
         (response)=>{
           if (!response.data.StatusCode)
@@ -83,7 +83,7 @@ function SellingTabContent(){
       ProjectID: ProjectID, 
       InvoiceID: InvoiceID
     };
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then(
         (response)=>{
           if (!response.data.StatusCode)
@@ -100,7 +100,7 @@ function SellingTabContent(){
       ProjectID: ProjectID,
       InvoiceID: InvoiceID
     };
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           let InvoiceData = response.data.Data;
@@ -307,7 +307,7 @@ function CreateInvoiceForm(){
     for (let i = 0; i < ProductIDs.length; i++){
       RequestParams[`ProductsIDs[${i}]`] = ProductIDs[i] ? ProductIDs[i] : undefined;
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           ExistingQuantities.current = response.data.Data;
@@ -335,7 +335,7 @@ function CreateInvoiceForm(){
       }: null)),
       Paid: InvoiceInfo.Paid
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           setUpdateTab(UpdateTab + 1);
@@ -528,7 +528,7 @@ function EditInvoiceForm(){
       ProjectID: ProjectID,
       InvoiceID: SelectedRow.current.children[1].innerText
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           let NewItemsList = Array.from({ length: 12 }, () => ({
@@ -592,7 +592,7 @@ function EditInvoiceForm(){
     for (let i = 0; i < ProductIDs.length; i++){
       RequestParams[`ProductsIDs[${i}]`] = ProductIDs[i] ? ProductIDs[i] : undefined;
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           ExistingQuantities.current = response.data.Data;
@@ -623,7 +623,7 @@ function EditInvoiceForm(){
       }: null)),
       Paid: InvoiceInfo.Paid
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           setUpdateTab(UpdateTab + 1);

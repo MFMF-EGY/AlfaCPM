@@ -17,8 +17,15 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path
 import CommercialAPI.views
+import AuthAPI.views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('apis/v1.0/commercial', CommercialAPI.views.StartRequestProcessing),
+    path('apis/v1.0/auth/register', AuthAPI.views.register_user),
+    path('apis/v1.0/auth/refresh', AuthAPI.views.validate_refresh_token),
+    path('apis/v1.0/auth/verify', AuthAPI.views.verify_email),
+    path('apis/v1.0/auth/login', AuthAPI.views.login),
+    #path('apis/v1.0/auth/request_password_reset', AuthAPI.views.request_password_reset),
+    #path('apis/v1.0/auth/reset_password', AuthAPI.views.reset_password),
 ]

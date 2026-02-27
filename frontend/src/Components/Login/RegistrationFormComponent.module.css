@@ -1,0 +1,62 @@
+.RegistrationFormContainer {
+  display: flex;
+  flex-direction: column;
+  width: 700px;
+  margin: auto;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+
+.RegistrationFormContainer label {
+  font-weight: bold;
+  min-width: max-content;
+  align-self: center;
+}
+
+.RegistrationFormContainer input {
+  margin: 5px 0px 5px 0px;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  width: 100%;
+  box-sizing: border-box;
+}
+.RegisterButton {
+  padding: 10px;
+  background-color: #28a745;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.RegisterButton:hover {
+  background-color: #218838;
+}
+.FieldsGroup {
+  display: flex;
+  gap: 10px;
+}
+.FieldsGroup input {
+  width: 100%;
+}
+
+.SplitedForm:has(> *:nth-child(2)){
+  display: flex;
+  gap: 20px;
+}
+
+.SplitedForm > div:not(:last-child){
+  border-inline-end: 1px solid #ccc;
+  padding-inline-end: 20px;
+}
+
+.OAuthButtonsContainer {
+  margin-top: 5px;
+}
+
+.OAuthButtonsContainer > * {
+  margin: 5px 0px;
+}

@@ -65,6 +65,7 @@ mariadb -u $db_user -p"$db_password" -e "
   CREATE TABLE IF NOT EXISTS Projects_Table (
     Project_ID INT AUTO_INCREMENT,
     Project_Name VARCHAR(255) NOT NULL,
+    Project_Owner INT NOT NULL,
     Project_Description TEXT,
     PRIMARY KEY (Project_ID)
   );"

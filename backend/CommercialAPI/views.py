@@ -10,6 +10,8 @@ from datetime import datetime
 from decimal import Decimal
 import CommercialAPI.models as project_db_structure
 from CommercialAPI.models import *
+from backend.__init__ import MainDBCursor
+from AuthAPI.views import get_refresh_token_user
 
 global SELLING_INVOICE_LENGTH, PURCHASE_INVOICE_LENGTH, REFUND_INVOICE_LENGTH, TRANSITION_DOCUMENT_LENGTH
 SELLING_INVOICE_LENGTH = 12
@@ -18,31 +20,7 @@ REFUND_INVOICE_LENGTH = 12
 TRANSITION_DOCUMENT_LENGTH = 12
 
 
-connections.databases["MainDB"] = {
-    'ENGINE': 'django.db.backends.mysql',
-    'NAME': 'MainDB',
-    'HOST': 'localhost',
-    'PORT': '3306',
-    'USER': 'alfacpm',
-    'PASSWORD': '000600',
-    'OPTIONS': {
-        'charset': 'utf8mb4'
-    },
-    'AUTOCOMMIT': False,
-    'TIME_ZONE': settings.TIME_ZONE,
-    'CONN_HEALTH_CHECKS': False,
-    'CONN_MAX_AGE': 0,
-    'ATOMIC_REQUESTS': False,
-    'TEST': {
-        'NAME': 'MainDB',
-        'MIRROR': None,
-        'CHARSET': None,
-        'COLLATION': None,
-        'MIGRATE': False,
-    },
-}
 ProjectsDBsConnectors = {}
-MainDBCursor = connections["MainDB"].cursor()
 
 # Enable dictionary fetches for Django cursor
 CursorWrapper.dictfetchall = lambda self: [
@@ -101,6 +79,8 @@ class ErrorCodes:
     PartialQuantityNotAllowed = 14
     NonexistentProduct = 15
     DBStructureError = 16
+    UserNotFound = 17
+
 def isnumberstr(value):
     try:
         float(value)
@@ -118,7 +98,7 @@ def isintstr(value):
 
 class ProcessRequest:
     @staticmethod
-    def CreateProject(RequestList, Test = False):
+    def CreateProject(RequestList, user, Test = False):
         ProjectName, ProjectDescription = RequestList["ProjectName"], RequestList["ProjectDescription"]
         if len(ProjectName) == 0:
             return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ProjectName"}
@@ -130,7 +110,7 @@ class ProcessRequest:
         if MainDBCursor.fetchone() is not None:
             return {"StatusCode":ErrorCodes.RedundantValue,"Variable":"ProjectName"}
 
-        MainDBCursor.execute("INSERT INTO Projects_Table(Project_Name,Project_Description) VALUES ('%s','%s')" % (ProjectName,ProjectDescription))
+        MainDBCursor.execute("INSERT INTO Projects_Table(Project_Name, Project_Owner,Project_Description) VALUES ('%s','%s','%s')" % (ProjectName,user.id,ProjectDescription))
         MainDBCursor.execute("SELECT LAST_INSERT_ID();")
         ProjectID = MainDBCursor.fetchone()[0]
         MainDBCursor.execute(f"CREATE DATABASE Project{ProjectID};")
@@ -1076,12 +1056,15 @@ class CheckValidation:
     @staticmethod
     def CreateProject(RequestList):
         try:
-            ProjectName, ProjectDescription = RequestList["ProjectName"], RequestList["ProjectDescription"]
+            ProjectName, ProjectDescription, RefreshToken = RequestList["ProjectName"], RequestList["ProjectDescription"], RequestList["RefreshToken"]
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if len(ProjectName) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ProjectName"}
         if len(ProjectDescription) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ProjectDescription"}
-        return ProcessRequest.CreateProject(RequestList)
+        if not (user := get_refresh_token_user(RefreshToken)): return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"RefreshToken"}
+        if user is None: return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"RefreshToken"}
+        if user == 1: return {"StatusCode":ErrorCodes.UserNotFound,"Data":""}
+        return ProcessRequest.CreateProject(RequestList, user)
 
     @staticmethod
     def CreateAccount(RequestList):
@@ -1102,8 +1085,7 @@ class CheckValidation:
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"ProjectID"}
 
         if len(StoreName) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"StoreName"}
         return ProcessRequest.AddStore(f"Project{ProjectID}", RequestList)
@@ -1796,22 +1778,4 @@ def StartRequestProcessing(Request):
             Response = CheckValidation.AdjustProductQuantity(RequestList)
         case _:
             Response = {"StatusCode": ErrorCodes.InvalidValue,"Variable": "RequestType"}
-    Response = JsonResponse(Response)
-    Response["Access-Control-Allow-Origin"] = "*"
-    return Response
-    #return JsonResponse(Response)
-
-def test(Request):
-    #r=StartRequestProcessing('{"Re":"ghl\'","h":[1,2,3],"i":{"g":"\'"}}')
-    #r = StartRequestProcessing('{"RequestType":"SearchInvoices","InvoiceType":"Purchase","Filters":[{"Invoice_ID":1}]}')
-    #r = StartRequestProcessing('{"RequestType":"SearchTransitionDocuments","Filters":[{"Document_ID":1}]}')
-    #ProcessRequest('{"RequestType":"EditProductInfo","ProductID":2,"ProductName":"Combination Wrench",'
-    #               '"Trademark":"King Tools","ManufactureCountry":"China","PurchasePrice":5,"WholesalePrice":60,'
-    #               '"RetailPrice":65}')
-    #r= StartRequestProcessing('{"RequestType":"GetProductInfo","ProductID":12}')
-    #r=StartRequestProcessing('{"RequestType":"AddProduct","ProductName":"Combination Wrench","Trademark":"King Tools","ManufactureCountry":"China","PurchasePrice":20,"WholesalePrice":30,"RetailPrice":35,"PartialQuantityPrecision":0}')
-    #r= StartRequestProcessing('{"RequestType":"Sell","StoreID":1,"ClientID":1,"Items":[{"ProductID":12,"Quantity":2.0,"Price":9.0}],"Paid":8}')
-    #r= StartRequestProcessing('{"RequestType":"Purchase","StoreID":1,"SellerID":1,"Items":[{"ProductID":12,"Quantity":4,"Price":9}],"Paid":9}')
-    #ProcessRequest('{"RequestType":"Transit","SourceStoreID":0,"DestinationStoreID":1,"Products":[{"ProductID":1,"Quantity":2},{"ProductID":2,"Quantity":2},{"ProductID":6,"Quantity":2}]}')
-    #r = StartRequestProcessing('{"RequestType":"AdjustProductQuantity","StoreID":1,"ProductID":1,"CurrentQuantity":25.0,"Notes":"قيمة أولية"}')
-    pass
+    return JsonResponse(Response)

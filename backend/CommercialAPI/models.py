@@ -7,6 +7,8 @@ class Debt_Accounts(models.Model):
     Creation_DateTime = models.DateTimeField(auto_now_add=True)
     Debt_Amount = models.DecimalField(max_digits=10, decimal_places=2)
 
+    Managed = False
+
 class Products_Table(models.Model):
     Product_ID = models.AutoField(primary_key=True)
     Product_Order = models.IntegerField()
@@ -21,15 +23,21 @@ class Products_Table(models.Model):
     Conversion_Rate = models.FloatField(default=1.0)
     Partial_Small_Quantity_Allowed = models.BooleanField(default=False)
 
+    Managed = False
+
 class Product_Quantity_Table(models.Model):
     Store_ID = models.ForeignKey('Stores_Table', on_delete=models.CASCADE)
     Product_ID = models.ForeignKey('Products_Table', on_delete=models.CASCADE)
     Quantity = models.FloatField()
 
+    Managed = False
+
 class Stores_Table(models.Model):
     Store_ID = models.AutoField(primary_key=True)
     Store_Name = models.CharField(max_length=100)
     Store_Address = models.CharField(max_length=200)
+
+    Managed = False
 
 class Selling_Invoices(models.Model):
     Invoice_ID = models.AutoField(primary_key=True)
@@ -40,6 +48,8 @@ class Selling_Invoices(models.Model):
     Paid = models.DecimalField(max_digits=10, decimal_places=2)
     Transferred_To_Debt_Account = models.DecimalField(max_digits=10, decimal_places=2)
 
+    Managed = False
+
 class Selling_Items(models.Model):
     Invoice_ID = models.ForeignKey('Selling_Invoices', on_delete=models.CASCADE)
     Product_ID = models.ForeignKey('Products_Table', on_delete=models.CASCADE)
@@ -47,6 +57,8 @@ class Selling_Items(models.Model):
     Quantity = models.FloatField()
     Convertion_Rate = models.FloatField()
     Unit_Price = models.DecimalField(max_digits=10, decimal_places=4)
+
+    Managed = False
 
 class Purchase_Invoices(models.Model):
     Invoice_ID = models.AutoField(primary_key=True)
@@ -57,12 +69,16 @@ class Purchase_Invoices(models.Model):
     Paid = models.DecimalField(max_digits=10, decimal_places=2)
     Deducted_From_Debt_Account = models.DecimalField(max_digits=10, decimal_places=2)
 
+    Managed = False
+
 class Purchase_Items(models.Model):
     Invoice_ID = models.ForeignKey('Purchase_Invoices', on_delete=models.CASCADE)
     Product_ID = models.ForeignKey('Products_Table', on_delete=models.CASCADE)
     Quantity = models.FloatField()
     Convertion_Rate = models.FloatField()
     Unit_Price = models.DecimalField(max_digits=10, decimal_places=4)
+
+    Managed = False
 
 class Transition_Documents(models.Model):
     Document_ID = models.AutoField(primary_key=True)
@@ -78,10 +94,14 @@ class Transition_Documents(models.Model):
     )
     DateTime = models.DateTimeField(auto_now_add=True)
 
+    Managed = False
+
 class Transition_Items(models.Model):
     Document_ID = models.ForeignKey('Transition_Documents', on_delete=models.CASCADE)
     Product_ID = models.ForeignKey('Products_Table', on_delete=models.CASCADE)
     Quantity = models.FloatField()
+
+    Managed = False
 
 class Products_Quantities_Adjustments(models.Model):
     Operation_ID = models.AutoField(primary_key=True)
@@ -91,6 +111,8 @@ class Products_Quantities_Adjustments(models.Model):
     Product_ID = models.ForeignKey('Products_Table', on_delete=models.CASCADE)
     Quantity = models.FloatField()
     Note = models.TextField(blank=True)
+
+    Managed = False
 
 class Debt_Accounts_Operations(models.Model):
     Operation_ID = models.AutoField(primary_key=True)
@@ -103,3 +125,5 @@ class Debt_Accounts_Operations(models.Model):
     Remaining_Amount = models.DecimalField(max_digits=10, decimal_places=2)
     Debt_Balance = models.DecimalField(max_digits=10, decimal_places=2)
     Note = models.TextField(blank=True)
+
+    Managed = False

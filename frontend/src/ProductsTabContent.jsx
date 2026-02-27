@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, createContext, useContext, use } from 'react';
 import axios from 'axios';
 import { GlobalContext } from './App.jsx';
-import { API_URL } from './App.jsx';
+import { COMMERCIAL_API_URL } from './App.jsx';
 
 const ProductsTabContext = createContext();
 
@@ -49,7 +49,7 @@ function ProductsTabContent({ref}){
     if (SearchParam.RetailPrice){ RequestParams.Product_ID__Retail_Price = SearchParam.RetailPrice; }
     if (SearchParam.LargeQuantityUnit){ RequestParams.Product_ID__Large_Quantity = SearchParam.LargeQuantityUnit; }
     if (SearchParam.SmallQuantityUnit){ RequestParams.Product_ID__Small_Quantity = SearchParam.SmallQuantityUnit; }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then(
         (response)=>{
           if (!response.data.StatusCode){
@@ -137,7 +137,7 @@ function AddProductForm(){
     //   RequestParams.ProductOrder = ProductsList[SelectedRow.current.rowIndex - 1].Product_Order + 1;
     // }
     
-    axios.get(API_URL, {params: RequestParams},)
+    axios.get(COMMERCIAL_API_URL, {params: RequestParams},)
       .then((response)=>{
         if (!response.data.StatusCode){
           setUpdateTab(UpdateTab + 1);
@@ -294,7 +294,7 @@ function EditProductForm(){
       ConversionRate: EditProductConversionRate.current.value,
       PartialSmallQuantityAllowed: EditProductPartialSmallQuantityAllowed.current.checked == true ? "True" : "False"
     };
-    axios.get(API_URL, {params: RequestParams})
+    axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response)=>{
         if (!response.data.StatusCode){
           setUpdateTab(UpdateTab + 1);

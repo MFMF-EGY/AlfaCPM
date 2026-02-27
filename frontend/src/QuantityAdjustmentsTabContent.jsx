@@ -3,7 +3,7 @@ import { TabPanel } from 'react-tabs';
 import axios from 'axios';
 import SuggestionsInput from './UiComponents/SuggestionsInput.jsx';
 import { GlobalContext } from './App.jsx';
-import { API_URL } from './App.jsx';
+import { COMMERCIAL_API_URL } from './App.jsx';
 
 const CurrentDateTime = new Date(Date.now());
 const QuantityAdjustmentsContext = createContext();
@@ -66,7 +66,7 @@ function QuantityAdjustmentsTabContent({ref}){
     if (SearchParam.ToDateTime){ RequestParams.ToDateTime = SearchParam.ToDateTime; }
     if (SearchParam.Quantity){ RequestParams.Quantity = SearchParam.Quantity; }
     if (SearchParam.Note){ RequestParams.Reason = SearchParam.Note; }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then(
         (response)=>{
           if (!response.data.StatusCode)
@@ -83,7 +83,7 @@ function QuantityAdjustmentsTabContent({ref}){
       ProjectID: ProjectID, 
       OperationID: OperationID
     };
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then(
         (response)=>{
           if (!response.data.StatusCode)
@@ -162,7 +162,7 @@ function AddOperationForm(){
       Product_ID__Trademark: NewProductInfo.Trademark,
       Product_ID__Manufacture_Country: NewProductInfo.ManufactureCountry
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           setSuggestions(response.data.Data);
@@ -184,7 +184,7 @@ function AddOperationForm(){
       Quantity: Params.Quantity,
       Note: Params.Note,
     };
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then(
         (response)=>{
           if (!response.data.StatusCode){

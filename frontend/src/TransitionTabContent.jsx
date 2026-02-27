@@ -3,7 +3,7 @@ import axios from 'axios';
 import { GlobalContext } from './App.jsx';
 import { TransitionDocumentItem } from './ItemComponents.jsx';
 import ItemsListEditor from './ItemsListEditor.jsx';
-import { API_URL } from './App.jsx';
+import { COMMERCIAL_API_URL } from './App.jsx';
 import TransitionDocumentTemplate from './DocumentsTemplates/TransitionDocumentTemplate.jsx';
 
 const CurrentDateTime = new Date(Date.now());
@@ -67,7 +67,7 @@ export function TransitionTabContent(){
     if (SearchParams.StoreID){RequestParams.StoreID = SearchParams.StoreID;}
     if (SearchParams.SourceStoreID){RequestParams.Source_Store_ID = SearchParams.SourceStoreID;}
     if (SearchParams.DestinationStoreID){RequestParams.Destination_Store_ID = SearchParams.DestinationStoreID;}
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           setDocumentsList(response.data.Data);
@@ -85,7 +85,7 @@ export function TransitionTabContent(){
       StoreID: StoreID,
       DocumentID: SelectedRow.current.id
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           setUpdateTab(UpdateTab+1);
@@ -101,7 +101,7 @@ export function TransitionTabContent(){
       ProjectID: ProjectID,
       DocumentID: DocumentID
     };
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           let DocumentData = response.data.Data;
@@ -190,7 +190,7 @@ function CreateDocumentForm(){
     for (let i = 0; i < ProductIDs.length; i++){
       RequestParams[`ProductsIDs[${i}]`] = ProductIDs[i] ? ProductIDs[i] : undefined;
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           ExistingQuantities.current = response.data.Data;
@@ -218,7 +218,7 @@ function CreateDocumentForm(){
         SmallQuantityUnit: item.SmallQuantityUnit
       } : null))
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           setUpdateTab(UpdateTab+1);
@@ -243,7 +243,7 @@ function CreateDocumentForm(){
       RequestType: "GetStores",
       ProjectID: ProjectID
     }
-    axios.get(API_URL, {params: RequestParams})
+    axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           setStores(response.data.Data.filter((store) => store.Store_ID !== Number(StoreID)));
@@ -422,7 +422,7 @@ function SearchDocumentForm(){
       RequestType: "GetStores",
       ProjectID: ProjectID
     }
-    axios.get(API_URL, {params: RequestParams})
+    axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           setStores(response.data.Data);
@@ -520,7 +520,7 @@ function EditDocumentForm(){
       ProjectID: ProjectID,
       DocumentID: SelectedRow.current.children[1].innerText
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
     .then((response) => {
       if (!response.data.StatusCode){
         let NewItemsList = Array.from({ length: 12 }, () => ({
@@ -576,7 +576,7 @@ function EditDocumentForm(){
     for (let i = 0; i < ProductIDs.length; i++){
       RequestParams[`ProductsIDs[${i}]`] = ProductIDs[i] ? ProductIDs[i] : undefined;
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           ExistingQuantities.current = response.data.Data;
@@ -602,7 +602,7 @@ function EditDocumentForm(){
         SmallQuantity: item.SmallQuantity
       } : null))
     }
-    await axios.get(API_URL, {params: RequestParams})
+    await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           setUpdateTab(UpdateTab+1);
@@ -623,7 +623,7 @@ function EditDocumentForm(){
       RequestType: "GetStores",
       ProjectID: ProjectID
     }
-    axios.get(API_URL, {params: RequestParams})
+    axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
         if (!response.data.StatusCode){
           setStores(response.data.Data);

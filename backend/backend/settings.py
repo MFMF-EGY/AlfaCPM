@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -38,6 +43,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'CommercialAPI',
+    'AuthAPI',
+    'rest_framework',
+    'corsheaders',
 ]
 
 MIDDLEWARE = [
@@ -48,6 +56,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
 ]
 
 ROOT_URLCONF = 'backend.urls'
@@ -77,6 +86,28 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+    },
+    'MainDB': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'MainDB',
+        'HOST': 'localhost',
+        'PORT': '3306',
+        'USER': 'alfacpm',
+        'PASSWORD': '000600',
+        'OPTIONS': {
+            'charset': 'utf8mb4'
+        },
+        'AUTOCOMMIT': False,
+        'CONN_HEALTH_CHECKS': False,
+        'CONN_MAX_AGE': 0,
+        'ATOMIC_REQUESTS': False,
+        'TEST': {
+            'NAME': 'MainDB',
+            'MIRROR': None,
+            'CHARSET': None,
+            'COLLATION': None,
+            'MIGRATE': False,
+        },
     }
 }
 
@@ -120,4 +151,20 @@ STATIC_URL = 'static/'
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
+
+IP = requests.get('https://api.ipify.org').text
+
+AUTH_USER_MODEL = 'AuthAPI.Users'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CORS_ALLOW_ALL_ORIGINS = True 
+GOOGlE_OAUTH2_CLIENT_ID = "417283093219-tq3ucsnemrskhnp8eavql9bjjrmq775t.apps.googleusercontent.com"
+
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+DEFAULT_FROM_EMAIL = 'AlfaCPM<tecart55555@gmail.com>'
+EMAIL_HOST_USER = os.getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD")

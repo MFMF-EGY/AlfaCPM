@@ -1,4 +1,5 @@
 :root{
+  --direction: rtl;
   --header-color:#282c34;
   --table-header-bgcolor:#203663;
   --button-hover-bgcolor: #203663;
@@ -10,8 +11,7 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  text-align: center;
-  direction: rtl;
+  direction: var(--direction);
 }
 
 main{
@@ -30,10 +30,9 @@ main{
   min-height: 10vh;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   font-size: calc(10px + 1vmin);
   color: white;
-  padding: 0 20px;
+  padding: 0 5px;
 }
 .Project-title{
   margin: 0px 20px;
@@ -188,7 +187,7 @@ button:disabled{
   cursor: default;
 }
 
-input[type=text], input[type=number]{
+input[type=text], input[type=number], input[type=password], input[type=email] {
   display: inline-block;
   -moz-appearance: textfield;
   border: 1px solid #ccc;
@@ -217,7 +216,7 @@ input::-webkit-inner-spin-button {
   justify-content: space-between;
 }
 
-.Form > div:has(.Form-close, .Form-submit){
+div:has(.Form-submit, .Form-close){
   justify-content: flex-end;
 }
 

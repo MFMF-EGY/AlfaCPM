@@ -1,0 +1,77 @@
+.SectionHeader {
+  margin: 10px 0px;
+  border-bottom: 2px solid var(--table-header-bgcolor);
+  padding-bottom: 5px;
+}
+
+.SectionHeader h3 {
+  margin: 0;
+  color: var(--table-header-bgcolor);
+}
+
+.ProjectCard, .NewProjectCard {
+  max-width: 345px;
+  width: 10rem;
+  height: 12rem;
+  display: inline-block;
+  align-items: center;
+  margin: 10px;
+  cursor: pointer;
+  background-color: white !important;
+  border: 1px solid #c7c7c7;
+  box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2) !important;
+  transition: box-shadow 0.3s ease, background-color 0.3s ease, color 0.3s ease, border 0.3s ease !important;
+}
+
+.ProjectCard:hover, .NewProjectCard:hover {
+  border: 1px solid var(--button-hover-bgcolor) !important;
+  box-shadow: 0 4px 8px var(--button-hover-bgcolor) !important;
+  background-color: var(--button-hover-bgcolor) !important;
+  color: white;
+}
+
+.ProjectCardContent {
+  padding: 50px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.NewProjectCard{
+  border: 1px dashed #c7c7c7;
+  box-shadow: none !important;
+}
+
+.NewProjectCard .AddIcon {
+  filter: invert(30%) sepia(100%) grayscale(100%) brightness(150%);
+}
+
+.NewProjectCard:hover .AddIcon {
+  filter: invert(100%) sepia(100%) grayscale(100%) brightness(200%);
+}
+
+.ProjectCardContent p{
+  text-align: start;
+}
+
+.NewProjectCardContent {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: -webkit-fill-available;
+  color: #c7c7c7;
+}
+
+.NewProjectCardContent:hover {
+  color: #f1f1f1;
+}
+
+.AddIcon {
+  width: 30%;
+  height: 30%;
+  margin-bottom: 10px;
+  transition: filter 0.3s ease;
+}
