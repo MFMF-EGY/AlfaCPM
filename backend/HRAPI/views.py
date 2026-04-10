@@ -23,7 +23,7 @@ class EmployeesList(APIView):
         if str(project.Project_Owner.id) != user["user_id"]:
             return JsonResponse({"error": "You are not the owner of this project"}, status=403)
         
-        employees = Project_Employees.objects.using(f"Project{project_id}").filter()
+        employees = Project_Employees.objects.using(f"Project{project_id}").filter(Still_Employee=True)
         employees_accounts_info = list(Users.objects.filter(id__in=[emp.Account_ID for emp in employees]).values("email", "user_name", "national_id", "profile_picture"))
 
         employee_list = []
@@ -51,11 +51,16 @@ class EmployeesList(APIView):
         if not (user := Users.objects.filter(id=account_id).first()):
             return JsonResponse({"error": "User not found"}, status=404)
         
-        if Employment.objects.filter(Account_ID=user).exists():
+        employee = Project_Employees.objects.using(f"Project{project_id}").filter(Account_ID=user.id).first()
+        if employee and employee.Still_Employee:
             return JsonResponse({"error": "User is already assigned to this project"}, status=400)
-        new_employee = Project_Employees(Account_ID=user.id, Employee_Role="ﻻ يوجد")
-        new_employee.save(using=f"Project{project_id}")
-        Employee_Permissions(Employee_ID=new_employee).save(using=f"Project{project_id}")
+        elif not employee:
+            new_employee = Project_Employees(Account_ID=user.id, Employee_Role="ﻻ يوجد")
+            new_employee.save(using=f"Project{project_id}")
+            Employee_Permissions(Employee_ID=new_employee).save(using=f"Project{project_id}")
+        elif employee and not employee.Still_Employee:
+            employee.Still_Employee = True
+            employee.save(using=f"Project{project_id}")
         connections[f"Project{project_id}"].commit()  
         Employment.objects.create(Account_ID=user, Project_ID=project).save()
         return JsonResponse({"message": "User added to project successfully"}, status=201)
@@ -73,10 +78,11 @@ class EmployeesList(APIView):
             return JsonResponse({"error": "You are not the owner of this project"}, status=403)
         if not (employee := Project_Employees.objects.using(f"Project{project_id}").filter(Employee_ID=employee_id).first()):
             return JsonResponse({"error": "Employee is not assigned to this project"}, status=404)
-        employee.delete(using=f"Project{project_id}")
+        employee.Still_Employee = False
+        employee.save(using=f"Project{project_id}")
         connections[f"Project{project_id}"].commit()
         Employment.objects.filter(Account_ID=employee.Account_ID, Project_ID=project).delete()
-        return JsonResponse({"message": "Employee removed from project successfully"}, status=200)
+        return JsonResponse({"message": "Employee unassigned from project successfully"}, status=200)
 
 class EmployeePermissions(APIView):
     def get(self, request):

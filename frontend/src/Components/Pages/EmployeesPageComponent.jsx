@@ -280,6 +280,21 @@ export function EmployeePermissionsForm({ employee, setOpenedForm }) {
           </SectionHeader>
           <div className={styles.PermissionsSection}>
             <div className={styles.Permission}>
+              <label>عرض فواتير الشراء</label>
+              <input
+                type="checkbox"
+                id="view_purchases"
+                name="view_purchases"
+                checked={permissions.Can_View_Purchases}
+                onChange={(event) => {
+                  setPermissions({
+                    ...permissions,
+                    Can_View_Purchases: event.target.checked,
+                  });
+                }}
+              />
+            </div>
+            <div className={styles.Permission}>
               <label>إنشاء فاتورة شراء</label>
               <input
                 type="checkbox"
@@ -329,6 +344,21 @@ export function EmployeePermissionsForm({ employee, setOpenedForm }) {
             <h3>صلاحيات البيع</h3>
           </SectionHeader>
           <div className={styles.PermissionsSection}>
+            <div className={styles.Permission}>
+              <label>عرض فواتير البيع</label>
+              <input
+                type="checkbox"
+                id="view_sells"
+                name="view_sells"
+                checked={permissions.Can_View_Sells}
+                onChange={(event) => {
+                  setPermissions({
+                    ...permissions,
+                    Can_View_Sells: event.target.checked,
+                  });
+                }}
+              />
+            </div>
             <div className={styles.Permission}>
               <label>إنشاء فاتورة بيع</label>
               <input
@@ -380,7 +410,22 @@ export function EmployeePermissionsForm({ employee, setOpenedForm }) {
           </SectionHeader>
           <div className={styles.PermissionsSection}>
             <div className={styles.Permission}>
-              <label>إنشاء تحويل</label>
+              <label>عرض مستندات التحويل</label>
+              <input
+                type="checkbox"
+                id="view_transitions"
+                name="view_transitions"
+                checked={permissions.Can_View_Transitions}
+                onChange={(event) => {
+                  setPermissions({
+                    ...permissions,
+                    Can_View_Transitions: event.target.checked,
+                  });
+                }}
+              />
+            </div>
+            <div className={styles.Permission}>
+              <label>إنشاء مستند تحويل</label>
               <input
                 type="checkbox"
                 id="add_transition"
@@ -395,7 +440,7 @@ export function EmployeePermissionsForm({ employee, setOpenedForm }) {
               />
             </div>
             <div className={styles.Permission}>
-              <label>تعديل تحويل</label>
+              <label>تعديل مستند تحويل</label>
               <input
                 type="checkbox"
                 id="edit_transition"
@@ -410,7 +455,7 @@ export function EmployeePermissionsForm({ employee, setOpenedForm }) {
               />
             </div>
             <div className={styles.Permission}>
-              <label>حذف تحويل</label>
+              <label>حذف مستند تحويل</label>
               <input
                 type="checkbox"
                 id="delete_transition"
@@ -429,6 +474,21 @@ export function EmployeePermissionsForm({ employee, setOpenedForm }) {
             <h3>صلاحيات مؤثرات الكميات</h3>
           </SectionHeader>
           <div className={styles.PermissionsSection}>
+            <div className={styles.Permission}>
+              <label>عرض مؤثرات الكميات</label>
+              <input
+                type="checkbox"
+                id="view_adjustments"
+                name="view_adjustments"
+                checked={permissions.Can_View_Adjustments}
+                onChange={(event) => {
+                  setPermissions({
+                    ...permissions,
+                    Can_View_Adjustments: event.target.checked,
+                  });
+                }}
+              />
+            </div>
             <div className={styles.Permission}>
               <label>انشاء مؤثر كمية</label>
               <input

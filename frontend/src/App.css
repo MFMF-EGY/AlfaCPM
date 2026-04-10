@@ -70,7 +70,7 @@ main{
 .Page{
   display: flex;
   width: 100%;
-  height: -webkit-fill-available;
+  height: 100%;
 }
 
 .Page-content{

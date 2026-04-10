@@ -1062,7 +1062,7 @@ def checkPermissions(RefreshToken, ProjectID, Permission):
         return 0
     # Check if user is employee in the project.
     employee_account = Project_Employees.objects.using(f"Project{ProjectID}").filter(Account_ID=user.id).first()
-    if employee_account is None: return {"StatusCode":ErrorCodes.Unauthorized,"Data":""}
+    if employee_account is None or not employee_account.Still_Employee: return {"StatusCode":ErrorCodes.Unauthorized,"Data":""}
     # Check if employee has the required permission.
     employee_permissions = Employee_Permissions.objects.using(f"Project{ProjectID}").get(Employee_ID=employee_account.Employee_ID)
     if not employee_permissions.__dict__.get(Permission, False):
@@ -1611,7 +1611,7 @@ class CheckValidation:
     @staticmethod
     def SearchInvoices(RequestList):
         try:
-            ProjectID, InvoiceType, StoreID, FromDateTime, ToDateTime = (
+            ProjectID, InvoiceType, StoreID, FromDateTime, ToDateTime, RefreshToken = (
                 RequestList["ProjectID"],
                 RequestList["InvoiceType"],
                 RequestList["StoreID"],
@@ -1636,8 +1636,14 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
         match InvoiceType:
             case "Selling":
+                if error := checkPermissions(
+                    RefreshToken, ProjectID, "Can_View_Selling"
+                ):
+                    return error
                 Error = SearchFiltersValidation.SellingInvoices(RequestList)
             case "Purchase":
+                if (error := checkPermissions(RefreshToken, ProjectID, "Can_View_Purchase")):
+                    return error
                 Error = SearchFiltersValidation.PurchaseInvoices(RequestList)
             case _:
                 return {"StatusCode":ErrorCodes.InvalidValue,"Variable":InvoiceType}
@@ -1648,7 +1654,13 @@ class CheckValidation:
     @staticmethod
     def SearchTransitionDocuments(RequestList):
         try:
-            ProjectID, StoreID, FromDateTime, ToDateTime = RequestList["ProjectID"], RequestList["StoreID"], RequestList["FromDateTime"], RequestList["ToDateTime"]
+            ProjectID, StoreID, FromDateTime, ToDateTime, RefreshToken = (
+                RequestList["ProjectID"],
+                RequestList["StoreID"],
+                RequestList["FromDateTime"],
+                RequestList["ToDateTime"],
+                RequestList["RefreshToken"],
+            )
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ProjectID"}
@@ -1665,6 +1677,8 @@ class CheckValidation:
         store_exists = Stores_Table.objects.using(f"Project{ProjectID}").filter(Store_ID=StoreID).exists()
         if not store_exists:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_View_Transitions")):
+            return error
         for Filter in RequestList.keys():
             match Filter:
                 case (
