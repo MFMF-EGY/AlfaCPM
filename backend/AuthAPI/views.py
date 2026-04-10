@@ -16,50 +16,6 @@ from google.auth.transport import requests
 from rest_framework.decorators import api_view
 from rest_framework_simplejwt.tokens import RefreshToken
 import jwt
-# try:
-#     with connections["MainDB"].schema_editor() as schema_editor:
-#         for model_name in dir(auth_models):
-#             model = getattr(auth_models, model_name)
-#             # create table if it does not exist
-#             schema_editor.create_model(model)
-# except Exception as e:
-#     pass
-# @api_view(["POST"])
-# def validate_oauth_user(request):
-#     if request.data.get("OAuth") == "google":
-#         token = request.data.get("Token")
-#         if not token:
-#             return JsonResponse({"error": "Token not provided"}, status=400)
-#         # Verify and decode JWT.
-#         decoded = jwt.decode(token, options={"verify_signature": False}, algorithms=["HS256"])
-#         try:
-#             id_token.verify_oauth2_token(token, requests.Request(), audience="417283093219-tq3ucsnemrskhnp8eavql9bjjrmq775t.apps.googleusercontent.com")
-#         except ValueError:
-#             return JsonResponse({"error": "Invalid token"}, status=400)
-#         # Get or create user in MainDB
-#         user = Users.objects.using("MainDB").filter(Email=decoded["email"]).first()
-#         if not user:
-#             user = Users(
-#                 First_Name=decoded.get("given_name", ""),
-#                 Second_Name=decoded.get("family_name", ""),
-#                 Email=decoded["email"],
-#                 Profile_Picture=decoded.get("picture", "")
-#             )
-#             user.save(using="MainDB")
-#             connections["MainDB"].commit()
-#         # Generate refresh token.
-#         refresh = RefreshToken.for_user(user)
-#         return JsonResponse(
-#             {
-#                 "Refresh": str(refresh),
-#                 "First_Name": user.First_Name,
-#                 "Second_Name": user.Second_Name,
-#                 "Email": user.Email,
-#                 "Profile_Picture": decoded.get("picture", ""),
-#             },
-#             status=200,
-#         )
-#     return JsonResponse({"error": "Invalid OAuth provider"}, status=400)
 
 @api_view(["POST"])
 def register_user(request):
@@ -80,7 +36,7 @@ def register_user(request):
         return JsonResponse({"error": "First name is required"}, status=400)
     if not password:
         return JsonResponse({"error": "Password is required"}, status=400)
-    existing_user = Users.objects.using("MainDB").filter(email=email).first()
+    existing_user = Users.objects.filter(email=email).first()
     if existing_user:
         return JsonResponse({"error": "User with this email already exists"}, status=400)
     if outh_provider == "google":
@@ -110,16 +66,27 @@ def register_user(request):
         national_id=national_id,
         profile_picture=profile_picture
     )
-    user.save(using="MainDB")
-    connections["MainDB"].commit()
-    token = PasswordResetTokenGenerator().make_token(user)
-    send_mail(
-        'Verify your email',
-        f'Please verify your email by clicking the following link: http://{settings.IP}:8000/apis/v1.0/auth/verify?email={email}&token={token}',
-        os.getenv('EMAIL_HOST_USER'),
-        [email],
-        fail_silently=False,
-    )
+    user.save()
+    if email_verified:
+        return JsonResponse(
+            {
+                "Status": "User registered successfully",
+                "RefreshToken": str(RefreshToken.for_user(user))
+            },
+            status=201,
+        )
+    
+    email_verification_token = PasswordResetTokenGenerator().make_token(user)
+    try:
+        send_mail(
+            'Verify your email',
+            f'Please verify your email by clicking the following link: http://{settings.IP}:8000/apis/v1.0/auth/verify?email={email}&token={email_verification_token}',
+            os.getenv('EMAIL_HOST_USER'),
+            [email],
+            fail_silently=False,
+        )
+    except Exception as e:
+        pass
     return JsonResponse(
         {
             "Status": "User registered successfully. Please verify your email.",
@@ -133,13 +100,13 @@ def verify_email(request):
     email = request.GET.get("email", "")
     if not token:
         return JsonResponse({"error": "Token not provided"}, status=400)
-    user = Users.objects.using("MainDB").filter(email=email).first()
+    user = Users.objects.filter(email=email).first()
     if not user:
         return JsonResponse({"error": "Invalid email"}, status=400)
     if PasswordResetTokenGenerator().check_token(user, token):
         user.is_active = True
-        user.save(using="MainDB")
-        connections["MainDB"].commit()
+        user.save()
+        
         return JsonResponse({"Status": "Email verified successfully"}, status=200)
     else:
         return JsonResponse({"error": "Invalid or expired token"}, status=400)
@@ -150,22 +117,33 @@ def login(request):
     password = (request.GET.get("password") or "").strip()
     if not email or not password:
         return JsonResponse({"error": "Email and Password are required"}, status=400)
-    user = Users.objects.using("MainDB").filter(email=email).first()
+    user = Users.objects.filter(email=email).first()
     if not user:
         return JsonResponse({"error": "Invalid email or password"}, status=401)
     hashed_password = pbkdf2(password, user.password_salt, 100000, digest=hashlib.sha256)
     hashed_password = base64.b64encode(hashed_password).decode('ascii').strip()
     if hashed_password != user.password_hash:
         return JsonResponse({"error": "Invalid email or password"}, status=401)
+    email_verification_token = PasswordResetTokenGenerator().make_token(user)
     if not user.is_active:
-        return JsonResponse({"error": "Email not verified"}, status=403)
+        try:
+            send_mail(
+                'Verify your email',
+                f'Please verify your email by clicking the following link: http://{settings.IP}:8000/apis/v1.0/auth/verify?email={email}&token={email_verification_token}',
+                os.getenv('EMAIL_HOST_USER'),
+                [email],
+                fail_silently=False,
+            )
+        except Exception as e:
+            return JsonResponse({"error": "Failed to send verification email"}, status=500)
+        return JsonResponse({"error": "Email not verified. Verification email sent."}, status=403)
     user.last_login = now()
-    user.save(using="MainDB")
-    connections["MainDB"].commit()
-    refresh = RefreshToken.for_user(user)
+    user.save()
+    refresh_token = RefreshToken.for_user(user)
+    
     return JsonResponse(
         {
-            "RefreshToken": str(refresh),
+            "RefreshToken": str(refresh_token),
             "First_Name": user.first_name,
             "Second_Name": user.second_name,
             "Email": user.email,
@@ -178,7 +156,7 @@ def get_refresh_token_user(refresh_token):
     try:
         token = RefreshToken(refresh_token)
         user_id = token["user_id"]
-        user = Users.objects.using("MainDB").filter(id=user_id).first()
+        user = Users.objects.filter(id=user_id).first()
         if not user:
             return 1
         return user
@@ -190,20 +168,14 @@ def validate_refresh_token(request):
     refresh_token = request.GET.get("token", "")
     if not refresh_token:
         return JsonResponse({"error": "Refresh token not provided"}, status=400)
-    # try:
-    #     token = RefreshToken(refresh_token)
-    # except Exception as e:
-    #     return JsonResponse({"error": "Invalid refresh token"}, status=400)
-    # user_id = token["user_id"]
-    # user = Users.objects.using("MainDB").filter(id=user_id).first()
     user = get_refresh_token_user(refresh_token)
     if user is None:
         return JsonResponse({"error": "Invalid refresh token"}, status=400)
     if user == 1:
         return JsonResponse({"error": "User not found"}, status=404)
     if user.is_active == False:
-        Users.objects.using("MainDB").filter(id=user.id).update(is_active=True)
-        connections["MainDB"].commit()
+        Users.objects.filter(id=user.id).update(is_active=True)
+        
     return JsonResponse(
         {
             "First_Name": user.first_name,

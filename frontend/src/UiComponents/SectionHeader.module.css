@@ -1,0 +1,15 @@
+.SectionHeader {
+  margin: 10px 0px;
+  border-bottom: 2px solid var(--table-header-bgcolor);
+  padding-bottom: 5px;
+}
+
+.SectionHeader h1,
+.SectionHeader h2,
+.SectionHeader h3,
+.SectionHeader h4,
+.SectionHeader h5,
+.SectionHeader h6 {
+  margin: 0;
+  color: var(--table-header-bgcolor);
+}

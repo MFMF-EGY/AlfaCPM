@@ -5,7 +5,7 @@ import { GlobalContext } from './App.jsx';
 
 function DebtsAccountsTabContent(){
   return (
-    <div className="Main-tab-content"></div>
+    <div className="Page"></div>
   )
 }
 

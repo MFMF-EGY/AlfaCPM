@@ -58,18 +58,18 @@ mariadb -u $db_user -p"$db_password" -e "
   CREATE USER IF NOT EXISTS '$db_user'@'localhost' IDENTIFIED BY '$db_password';
   GRANT ALL PRIVILEGES ON *.* TO '$db_user'@'localhost' WITH GRANT OPTION;
   FLUSH PRIVILEGES;"
-# Ensure MainDB database exists.
-mariadb -u $db_user -p"$db_password" -e "
-  CREATE DATABASE IF NOT EXISTS MainDB;
-  USE MainDB;
-  CREATE TABLE IF NOT EXISTS Projects_Table (
-    Project_ID INT AUTO_INCREMENT,
-    Project_Name VARCHAR(255) NOT NULL,
-    Project_Owner INT NOT NULL,
-    Project_Description TEXT,
-    PRIMARY KEY (Project_ID)
-  );"
-echo "Database setup completed successfully."
+# # Ensure MainDB database exists.
+# mariadb -u $db_user -p"$db_password" -e "
+#   CREATE DATABASE IF NOT EXISTS MainDB;
+#   USE MainDB;
+#   CREATE TABLE IF NOT EXISTS Projects_Table (
+#     Project_ID INT AUTO_INCREMENT,
+#     Project_Name VARCHAR(255) NOT NULL,
+#     Project_Owner INT NOT NULL,
+#     Project_Description TEXT,
+#     PRIMARY KEY (Project_ID)
+#   );"
+# echo "Database setup completed successfully."
 
 # If session 'alfacpm' exists, ask to kill it.
 if tmux has-session -t alfacpm 2>/dev/null; then
@@ -87,7 +87,7 @@ tmux set -g mouse on
 tmux split-window -h -t alfacpm
 # Start the backend and frontend services in tmux panes.
 tmux send-keys -t alfacpm:0.0 "echo 'Starting backend server...' && python3 ../backend/manage.py runserver 0.0.0.0:8000" Enter
-tmux send-keys -t alfacpm:0.1 "echo 'Starting frontend server...' && cd ../frontend && npm run dev" Enter
+tmux send-keys -t alfacpm:0.1 "echo 'Starting frontend server...' && cd ../frontend && npm run dev -- --host 0.0.0.0" Enter
 tmux attach -t alfacpm
 
 # TODO: Uncomment the following lines and add option to run them as services.

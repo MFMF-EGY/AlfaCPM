@@ -1,14 +1,3 @@
-.SectionHeader {
-  margin: 10px 0px;
-  border-bottom: 2px solid var(--table-header-bgcolor);
-  padding-bottom: 5px;
-}
-
-.SectionHeader h3 {
-  margin: 0;
-  color: var(--table-header-bgcolor);
-}
-
 .ProjectCard, .NewProjectCard {
   max-width: 345px;
   width: 10rem;
@@ -27,11 +16,10 @@
   border: 1px solid var(--button-hover-bgcolor) !important;
   box-shadow: 0 4px 8px var(--button-hover-bgcolor) !important;
   background-color: var(--button-hover-bgcolor) !important;
-  color: white;
+  color: white !important;
 }
 
 .ProjectCardContent {
-  padding: 50px;
   text-align: center;
   display: flex;
   flex-direction: column;

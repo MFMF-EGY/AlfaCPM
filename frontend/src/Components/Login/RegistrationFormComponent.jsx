@@ -18,6 +18,7 @@ export default function RegisterationFormComponent({ onLoginSuccess }) {
   const [ nationalID, setNationalID ] = useState('');
   const [ oauthProvider, setOAuthProvider ] = useState('');
   const [ oauthToken, setOAuthToken ] = useState(null);
+  const [ emailVerification, setEmailVerification ] = useState(false);
   const [ error, setError ] = useState(null);
 
   const fillFields = (credentialResponse) => {
@@ -38,7 +39,6 @@ export default function RegisterationFormComponent({ onLoginSuccess }) {
       setError("كلمات المرور غير متطابقة");
       return;
     }
-    console.log(AUTH_API_URL)
     await axios.post(AUTH_API_URL + '/register', {
       Email: email,
       First_Name: firstName,
@@ -50,7 +50,11 @@ export default function RegisterationFormComponent({ onLoginSuccess }) {
       OAuthToken: oauthToken
     })
     .then(response => {
-      onLoginSuccess(response.data);
+      if (response.data.RefreshToken) {
+        onLoginSuccess(response.data.RefreshToken);
+      } else {
+        setEmailVerification(true);
+      }
     })
     .catch(err => {
       if (err.response && err.response.data && err.response.data.message) {
@@ -66,92 +70,98 @@ export default function RegisterationFormComponent({ onLoginSuccess }) {
       <div style={{ display: 'flex' }}>
         <button className='Form-close' onClick={() => setFormSelector("")}>X</button>
       </div>
-      <form onSubmit={handleSubmit}>
-        <div className={styles.SplitedForm}>
-          <div>
-            <div>
-              <label>الاسم</label>
-            </div>
-            <div className={styles.FieldsGroup}>
-              <input 
-                type="text" 
-                value={firstName} 
-                onChange={(e) => setFirstName(e.target.value)}
-                required
-              />
-              <input
-                type="text"
-                value={secondName}
-                onChange={(e) => setSecondName(e.target.value)}
-                required
-              />
-              <input
-                type="text"
-                value={thirdName}
-                onChange={(e) => setThirdName(e.target.value)}
-                required
-              />
-              <input
-                type="text"
-                value={forthName}
-                onChange={(e) => setForthName(e.target.value)}
-                required
-              />
-            </div>
-            <div className={styles.FieldsGroup}>
-              <label>كلمة المرور</label>
-              <input 
-                type="password" 
-                value={password} 
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              <label>تأكيد كلمة المرور</label>
-              <input 
-                type="password" 
-                value={confirmPassword} 
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-            </div>
-            <div className={styles.FieldsGroup}>
-              <label>البريد اﻹلكتروني</label>
-              <input 
-                type="email" 
-                value={email} 
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={oauthProvider ? true : false}
-                required 
-              />
-              <label>الرقم القومي</label>
-              <input 
-                type="text"
-                value={nationalID}
-                onChange={(e) => setNationalID(e.target.value)}
-                required 
-              />
-            </div>
-            {error && <div className="error">{error}</div>}
-            <button type="submit" className={styles.RegisterButton}>دخول</button>
-          </div>
-          {!oauthProvider &&
-            <div>
-              <div><label>التسجيل من خلال</label></div>
-              <div className={styles.OAuthButtonsContainer}>
-                <GoogleOAuthProvider clientId="417283093219-tq3ucsnemrskhnp8eavql9bjjrmq775t.apps.googleusercontent.com">
-                  <GoogleLogin
-                    className={styles.OAuthButton}
-                    onSuccess={fillFields}
-                    onError={() => {
-                      console.log("Login Failed");
-                    }}
-                  />
-                </GoogleOAuthProvider>
-              </div>
-            </div>
-          }
+      {emailVerification ? (
+        <div className={styles.EmailVerification}>
+          <p>تم إرسال رمز التحقق إلى بريدك الإلكتروني.</p>
         </div>
-      </form>
+      ) : 
+        <form onSubmit={handleSubmit}>
+          <div className={styles.SplitedForm}>
+            <div>
+              <div>
+                <label>الاسم</label>
+              </div>
+              <div className={styles.FieldsGroup}>
+                <input 
+                  type="text" 
+                  value={firstName} 
+                  onChange={(e) => setFirstName(e.target.value)}
+                  required
+                />
+                <input
+                  type="text"
+                  value={secondName}
+                  onChange={(e) => setSecondName(e.target.value)}
+                  required
+                />
+                <input
+                  type="text"
+                  value={thirdName}
+                  onChange={(e) => setThirdName(e.target.value)}
+                  required
+                />
+                <input
+                  type="text"
+                  value={forthName}
+                  onChange={(e) => setForthName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className={styles.FieldsGroup}>
+                <label>كلمة المرور</label>
+                <input 
+                  type="password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <label>تأكيد كلمة المرور</label>
+                <input 
+                  type="password" 
+                  value={confirmPassword} 
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  required
+                />
+              </div>
+              <div className={styles.FieldsGroup}>
+                <label>البريد اﻹلكتروني</label>
+                <input 
+                  type="email" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={oauthProvider ? true : false}
+                  required 
+                />
+                <label>الرقم القومي</label>
+                <input 
+                  type="text"
+                  value={nationalID}
+                  onChange={(e) => setNationalID(e.target.value)}
+                  required 
+                />
+              </div>
+              {error && <div className="error">{error}</div>}
+              <button type="submit" className={styles.RegisterButton}>دخول</button>
+            </div>
+            {!oauthProvider &&
+              <div>
+                <div><label>التسجيل من خلال</label></div>
+                <div className={styles.OAuthButtonsContainer}>
+                  <GoogleOAuthProvider clientId="417283093219-tq3ucsnemrskhnp8eavql9bjjrmq775t.apps.googleusercontent.com">
+                    <GoogleLogin
+                      className={styles.OAuthButton}
+                      onSuccess={fillFields}
+                      onError={() => {
+                        console.log("Login Failed");
+                      }}
+                    />
+                  </GoogleOAuthProvider>
+                </div>
+              </div>
+            }
+          </div>
+        </form>
+      }
     </div>
   )
 }

@@ -10,8 +10,7 @@ const LinkURL = `url(${Link})`;
 const BrokenLinkURL = `url(${BrokenLink})`;
 
 export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, ExistingQuantities, isQuantitySufficient, Index, ValidationChecker, setValidationChecker}){
-  const { ProjectID, StoreID } = useContext(GlobalContext);
-  //const [ InitialQuantity, setInitialQuantity ] = useState(ItemsList[Index].Quantity);
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   const [ Suggestions, setSuggestions ] = useState([]);
   const [ FilteredSuggestions, setFilteredSuggestions ] = useState([]);
   const [ Chain, setChain ] = useState([false, false, true]);
@@ -26,6 +25,7 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       RequestType: "SearchProducts",
       ProjectID: ProjectID,
       StoreID: StoreID,
+      RefreshToken: refreshToken
     }
     if (NewItemsList[Index].ProductID){
       RequestParams.Product_ID__Product_ID = NewItemsList[Index].ProductID;
@@ -54,7 +54,8 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
       RequestType: "SearchProducts",
       ProjectID: ProjectID,
       StoreID: StoreID,
-      Product_ID__Product_ID: NewItemsList[Index].ProductID
+      Product_ID__Product_ID: NewItemsList[Index].ProductID,
+      RefreshToken: refreshToken
     }
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
@@ -518,8 +519,7 @@ export function InvoiceItem({ ItemsList, setItemsList, setSelectedItemIndex, Exi
 }
 
 export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItemIndex, Index, ExistingQuantities, isQuantitySufficient, ValidationChecker, setValidationChecker}){
-  const { ProjectID } = useContext(GlobalContext);
-  const { StoreID } = useContext(GlobalContext);
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   
   const [ Suggestions, setSuggestions ] = useState([]);
   const [ FilteredSuggestions, setFilteredSuggestions ] = useState([]);
@@ -531,6 +531,7 @@ export function TransitionDocumentItem({ItemsList, setItemsList, setSelectedItem
       RequestType: "SearchProducts",
       ProjectID: ProjectID,
       StoreID: StoreID,
+      RefreshToken: refreshToken
     }
     if (NewItemsList[Index].ProductName){
       RequestParams.Product_ID__Product_Name = NewItemsList[Index].ProductName;

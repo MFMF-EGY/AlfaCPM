@@ -10,8 +10,7 @@ const CurrentDateTime = new Date(Date.now());
 const PurchaseTabContext = createContext();
 
 function PurchaseTabContent(){
-  const { ProjectID } = useContext(GlobalContext);
-  const { StoreID } = useContext(GlobalContext);
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   const [ SearchParam, setSearchParam ] = useState({
     InvoiceID: "",
     SellerName: "",
@@ -43,21 +42,13 @@ function PurchaseTabContent(){
   const PrintInvoiceButtonRef = useRef(null);
   const SelectedRow = useRef(null);
 
-  useEffect(() => {
-    if (SelectedRow.current){SelectedRow.current.classList.remove("Selected-row");}
-    SelectedRow.current = null;
-    EditInvoiceButtonRef.current.disabled = true;
-    DeleteInvoiceButtonRef.current.disabled = true;
-    PrintInvoiceButtonRef.current.disabled = true;
-    setOpendForm(null); 
-    fetchInvoices();
-  }, [UpdateTab, ProjectID, StoreID]);
-
   const fetchInvoices = async () => {
     var RequestParams = {
-      RequestType:"SearchInvoices",
-      InvoiceType:"Purchase",
-      ProjectID:ProjectID, StoreID:StoreID
+      RequestType: "SearchInvoices",
+      InvoiceType: "Purchase",
+      ProjectID: ProjectID,
+      StoreID: StoreID,
+      RefreshToken: refreshToken
     };
     if (SearchParam.InvoiceID){ RequestParams.Invoice_ID = SearchParam.InvoiceID; }
     if (SearchParam.SellerName){ RequestParams.Seller_Name = SearchParam.SellerName; }
@@ -79,7 +70,8 @@ function PurchaseTabContent(){
     var RequestParams = {
       RequestType: "DeletePurchaseInvoice",
       ProjectID: ProjectID, 
-      InvoiceID: InvoiceID
+      InvoiceID: InvoiceID,
+      RefreshToken: refreshToken
     };
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then(
@@ -96,7 +88,8 @@ function PurchaseTabContent(){
       RequestType: "GetInvoice",
       InvoiceType: "Purchase",
       ProjectID: ProjectID,
-      InvoiceID: InvoiceID
+      InvoiceID: InvoiceID,
+      RefreshToken: refreshToken
     };
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
@@ -116,10 +109,20 @@ function PurchaseTabContent(){
       });
   }
 
+  useEffect(() => {
+    if (SelectedRow.current){SelectedRow.current.classList.remove("Selected-row");}
+    SelectedRow.current = null;
+    EditInvoiceButtonRef.current.disabled = true;
+    DeleteInvoiceButtonRef.current.disabled = true;
+    PrintInvoiceButtonRef.current.disabled = true;
+    setOpendForm(null); 
+    fetchInvoices();
+  }, [UpdateTab, ProjectID, StoreID]);
+
   return(
     <PurchaseTabContext.Provider value={{ SearchParam, setSearchParam, UpdateTab, setUpdateTab, InvoicesList,
       setInvoicesList, OpendForm, setOpendForm, SelectedRow, EditInvoiceButtonRef, DeleteInvoiceButtonRef, PrintInvoiceButtonRef }}>
-      <div className="Main-tab-content">
+      <div className="Page">
         <div className="Table-container">
           <table className="Table" id="Invoices-table">
             <thead>
@@ -157,7 +160,7 @@ function PurchaseTabContent(){
 }
 
 function CreateInvoiceForm(){
-  const { ProjectID, StoreID } = useContext(GlobalContext);
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   const { UpdateTab, setUpdateTab, setOpendForm } = useContext(PurchaseTabContext);
   const [ Submiting, setSubmiting ] = useState(false);
   const [ InvoiceInfo, setInvoiceInfo ] = useState({
@@ -196,7 +199,8 @@ function CreateInvoiceForm(){
         SmallQuantity: item.SmallQuantity,
         UnitPrice: item.SmallUnitPrice,
       }: null)),
-      Paid: InvoiceInfo.Paid
+      Paid: InvoiceInfo.Paid,
+      RefreshToken: refreshToken
     }
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
@@ -451,7 +455,7 @@ function SearchInvoicesForm(){
 }
 
 function EditInvoiceForm(){
-  const { ProjectID, StoreID } = useContext(GlobalContext);
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   const { UpdateTab, setUpdateTab, CreateInvoiceFormRef, setOpendForm, SelectedRow } = useContext(PurchaseTabContext);
   const [ Loading , setLoading ] = useState(true);
   const [ Submiting, setSubmiting ] = useState(false);
@@ -579,7 +583,8 @@ function EditInvoiceForm(){
         SmallQuantity: item.SmallQuantity,
         UnitPrice: item.SmallUnitPrice,
       }: null)),
-      Paid: InvoiceInfo.Paid
+      Paid: InvoiceInfo.Paid,
+      RefreshToken: refreshToken
     }
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {

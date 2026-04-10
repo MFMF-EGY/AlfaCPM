@@ -14,14 +14,15 @@ export default function LoginFormComponent({ onLoginSuccess }) {
     e.preventDefault();
     axios.get(`${AUTH_API_URL}/login`, { params: { email, password } })
     .then(response => {
-      if (response.status === 200) {
-        onLoginSuccess(response.data.RefreshToken);
-      } else {
-        setError(response.data.message);
-      }
+      onLoginSuccess(response.data.RefreshToken);
     })
     .catch(error => {
-      setError("حدث خطأ أثناء تسجيل الدخول");
+      console.error("Login error:", error);
+      if (error.response.status === 401 || error.response.status === 403) {
+        setError(error.response.data.message);
+      } else {
+        setError("حدث خطأ أثناء تسجيل الدخول");
+      }
     });
   }
   return (

@@ -10,8 +10,7 @@ const CurrentDateTime = new Date(Date.now());
 const SellingTabContext = createContext();
 
 function SellingTabContent(){
-  const { ProjectID } = useContext(GlobalContext);
-  const { StoreID } = useContext(GlobalContext);
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   const [ SearchParam, setSearchParam ] = useState({
     InvoiceID: "",
     ClientName: "",
@@ -55,10 +54,11 @@ function SellingTabContent(){
 
   const fetchInvoices = async () => {
     let RequestParams = {
-      RequestType:"SearchInvoices",
-      InvoiceType:"Selling",
-      ProjectID:ProjectID,
-      StoreID:StoreID
+      RequestType: "SearchInvoices",
+      InvoiceType: "Selling",
+      ProjectID: ProjectID,
+      StoreID: StoreID,
+      RefreshToken: refreshToken,
     };
     if (SearchParam.InvoiceID){ RequestParams.Invoice_ID = SearchParam.InvoiceID; }
     if (SearchParam.ClientName){ RequestParams.Seller_Name = SearchParam.SellerName; }
@@ -121,7 +121,7 @@ function SellingTabContent(){
   return(
     <SellingTabContext.Provider value={{ SearchParam, setSearchParam, UpdateTab, setUpdateTab, InvoicesList,
       setInvoicesList, OpendForm, setOpendForm, SelectedRow, EditInvoiceButtonRef, DeleteInvoiceButtonRef, PrintInvoiceButtonRef }}>
-      <div className="Main-tab-content">
+      <div className="Page">
         <div className="Table-container">
           <table className="Table" id="Selling-table">
             <thead>
@@ -270,7 +270,7 @@ function SearchInvoicesForm(){
 }
 
 function CreateInvoiceForm(){
-  const { ProjectID, StoreID } = useContext(GlobalContext);
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   const { UpdateTab, setUpdateTab, setOpendForm } = useContext(SellingTabContext);
   const [ Submiting, setSubmiting ] = useState(false);
   const [ InvoiceInfo, setInvoiceInfo ] = useState({
@@ -302,6 +302,7 @@ function CreateInvoiceForm(){
       RequestType: "GetProductsQuantities",
       ProjectID: ProjectID,
       StoreID: StoreID,
+      RefreshToken: refreshToken
     }
     let ProductIDs = ItemsList.map((item) => item.ProductID);
     for (let i = 0; i < ProductIDs.length; i++){
@@ -333,7 +334,8 @@ function CreateInvoiceForm(){
         SmallQuantity: item.SmallQuantity,
         UnitPrice: item.SmallUnitPrice,
       }: null)),
-      Paid: InvoiceInfo.Paid
+      Paid: InvoiceInfo.Paid,
+      RefreshToken: refreshToken
     }
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
@@ -492,7 +494,7 @@ function CreateInvoiceForm(){
 }
 
 function EditInvoiceForm(){
-  const { ProjectID, StoreID } = useContext(GlobalContext);
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   const { UpdateTab, setUpdateTab, setOpendForm, SelectedRow } = useContext(SellingTabContext);
   const [ Loading , setLoading ] = useState(true);
   const [ Submiting, setSubmiting ] = useState(false);
@@ -526,7 +528,8 @@ function EditInvoiceForm(){
       RequestType: "GetInvoice",
       InvoiceType: "Selling",
       ProjectID: ProjectID,
-      InvoiceID: SelectedRow.current.children[1].innerText
+      InvoiceID: SelectedRow.current.children[1].innerText,
+      RefreshToken: refreshToken
     }
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
@@ -621,7 +624,8 @@ function EditInvoiceForm(){
         SmallQuantity: item.SmallQuantity,
         UnitPrice: item.SmallUnitPrice,
       }: null)),
-      Paid: InvoiceInfo.Paid
+      Paid: InvoiceInfo.Paid,
+      RefreshToken: refreshToken
     }
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {

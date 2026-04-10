@@ -5,9 +5,8 @@ import { COMMERCIAL_API_URL } from './App.jsx';
 
 const ProductsTabContext = createContext();
 
-function ProductsTabContent({ref}){
-  const { ProjectID } = useContext(GlobalContext);
-  const { StoreID } = useContext(GlobalContext);
+function ProductsTabContent(){
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   const [ SearchParam, setSearchParam ] = useState({
     ProductID: "",
     ProductName: "",
@@ -39,7 +38,12 @@ function ProductsTabContent({ref}){
   }, [UpdateTab, ProjectID, StoreID]);
 
   const fetchProducts = async () => {
-    var RequestParams = { RequestType: "SearchProducts", ProjectID: ProjectID, StoreID: StoreID };
+    var RequestParams = {
+      RequestType: "SearchProducts",
+      ProjectID: ProjectID,
+      StoreID: StoreID,
+      RefreshToken: refreshToken
+    };
     if (SearchParam.ProductID){ RequestParams.Product_ID__Product_ID = SearchParam.ProductID; }
     if (SearchParam.ProductName){ RequestParams.Product_ID__Product_Name = SearchParam.ProductName; }
     if (SearchParam.Trademark){ RequestParams.Product_ID__Trademark = SearchParam.Trademark; }
@@ -68,7 +72,7 @@ function ProductsTabContent({ref}){
   return(
     <ProductsTabContext.Provider value={{ SearchParam, setSearchParam, UpdateTab, setUpdateTab, ProductsList, setProductsList, OpendForm, setOpendForm, AddProductFormRef,
       EditProductButtonRef, EditProductFormRef, SearchProductsFormRef, PrintProductsFormRef, SelectedRow }}>
-      <div className="Main-tab-content">
+      <div className="Page">
         <div className="Table-container">
           <table className="Table" id="Products-table">
             <thead>
@@ -105,7 +109,7 @@ function ProductsTabContent({ref}){
   );
 }
 function AddProductForm(){
-  const { ProjectID, StoreID } = useContext(GlobalContext);
+  const { ProjectID, refreshToken } = useContext(GlobalContext);
   const { UpdateTab, setUpdateTab, ProductsList, SelectedRow, AddProductFormRef, setOpendForm } = useContext(ProductsTabContext);
   const AddProductNameRef = useRef();
   const AddProductTrademarkRef = useRef();
@@ -121,7 +125,6 @@ function AddProductForm(){
     var RequestParams = {
       RequestType:"AddProduct",
       ProjectID: ProjectID,
-      StoreID: StoreID,
       ProductName: AddProductNameRef.current.value,
       Trademark: AddProductTrademarkRef.current.value,
       ManufactureCountry: AddProductManufactureCountryRef.current.value,
@@ -131,7 +134,8 @@ function AddProductForm(){
       LargeQuantityUnit: AddProductLargeQuantityUnitRef.current.value,
       SmallQuantityUnit: AddProductSmallQuantityUnitRef.current.value,
       ConversionRate: AddProductConversionRateRef.current.value,
-      PartialSmallQuantityAllowed: AddProductPartialSmallQuantityAllowedRef.current.checked == true ? "True" : "False"
+      PartialSmallQuantityAllowed: AddProductPartialSmallQuantityAllowedRef.current.checked == true ? "True" : "False",
+      RefreshToken: refreshToken
     };
     // if (SelectedRow.current){
     //   RequestParams.ProductOrder = ProductsList[SelectedRow.current.rowIndex - 1].Product_Order + 1;
@@ -266,7 +270,7 @@ function SearchProductsForm(){
 }
 
 function EditProductForm(){
-  const { ProjectID } = useContext(GlobalContext);
+  const { ProjectID, refreshToken } = useContext(GlobalContext);
   const { UpdateTab, setUpdateTab, ProductsList, SelectedRow, EditProductFormRef, setOpendForm } = useContext(ProductsTabContext);
   const EditProductID = useRef(null);
   const EditProductName = useRef(null);
@@ -292,7 +296,8 @@ function EditProductForm(){
       LargeQuantityUnit:EditProductLargeQuantityUnit.current.value,
       SmallQuantityUnit: EditProductSmallQuantityUnit.current.value,
       ConversionRate: EditProductConversionRate.current.value,
-      PartialSmallQuantityAllowed: EditProductPartialSmallQuantityAllowed.current.checked == true ? "True" : "False"
+      PartialSmallQuantityAllowed: EditProductPartialSmallQuantityAllowed.current.checked == true ? "True" : "False",
+      RefreshToken: refreshToken
     };
     axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response)=>{
@@ -373,7 +378,7 @@ function EditProductForm(){
           <input type="checkbox" ref={EditProductPartialSmallQuantityAllowed} />
         </div>
         <div>
-          <button onClick={() => EditProduct()}>تعديل</button>
+          <button className="Form-submit" onClick={() => EditProduct()}>تعديل</button>
         </div>
       </div>
     </div>

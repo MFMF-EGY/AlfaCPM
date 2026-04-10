@@ -1,10 +1,13 @@
-import React, { useState } from "react";
-const Tabs = ({ children }) => {
+import React, { useState, useEffect } from "react";
+const Tabs = ({ children, className, style }) => {
   const [ activeTab, setActiveTab ] = useState(0);
+
+  const childElements = React.Children.toArray(children).filter((child) => React.isValidElement(child));
+
   const [ OpenedTabs, setOpenedTabs ] = useState(
-    React.Children.map(children, (child) => child.props.opened || false)
+    childElements.map((child) => Boolean(child.props.opened))
   );
-  
+
   const openTab = (index) => {
     const openedTabsCopy = [...OpenedTabs];
     openedTabsCopy[index] = true;
@@ -27,12 +30,12 @@ const Tabs = ({ children }) => {
     }
   };
   
-  const tabs = React.Children.map(children, (child) =>
-    React.cloneElement(child, { OpenedTabs, setOpenedTabs, openTab, closeTab, ...child.props })
+  const tabs = childElements.map((child, index) =>
+    React.cloneElement(child, { index, OpenedTabs, setOpenedTabs, openTab, closeTab, ...child.props })
   );
 
   return (
-    <div style={{ height: "100%" }}>
+    <div className={className} style={{ display: "flex", flexDirection: "column", ...style }}>
       <ul className="Tabs-bar">
         {tabs.map((tab, index) => (
           OpenedTabs[index] && (
@@ -78,7 +81,17 @@ const Tabs = ({ children }) => {
   );
 };
 
-const Tab = ({ OpenedTabs, setOpenedTabs, openTab, closeTab, children }) => {
+const Tab = ({ index, OpenedTabs, setOpenedTabs, openTab, closeTab, keepOpen=true, children }) => {
+  useEffect(() => {
+    if (!keepOpen && OpenedTabs[index]) {
+      closeTab(index);
+    }
+  }, [keepOpen]);
+
+  if (!keepOpen) {
+    return null;
+  }
+
   return (
     <>
       {React.cloneElement(children, { OpenedTabs, setOpenedTabs, openTab, closeTab })}

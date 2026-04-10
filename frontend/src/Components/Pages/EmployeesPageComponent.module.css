@@ -1,0 +1,109 @@
+.PanelsContainer{
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 20px;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.Panel{
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 20px;
+  box-sizing: border-box;
+  background-color: white;
+}
+
+.PanelTitle{
+  margin: 0px;
+  padding: 0px;
+  font-size: 1.5em;
+  color: #333;
+}
+
+.ProfilesList {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+  padding: 0px;
+  margin: 0px;
+}
+
+.ProfileLayout {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	border-radius: 5px;
+	border: 1px solid;
+	padding: 10px;
+}
+
+.Profile {
+	color: black;
+	border-color: #ccc;
+	box-shadow: 0px 8px 16px 0px rgba(0 ,0 ,0 ,0.2) ;
+	transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease, color 0.3s ease;
+}
+
+.Profile:hover {
+	background-color: var(--button-hover-bgcolor);
+	border-color: var(--button-hover-bgcolor);
+	color: white;
+	box-shadow: 0 4px 8px var(--button-hover-bgcolor);
+}
+
+.Profile:active {
+	background-color: var(--button-clicked-bgcolor);
+	border-color: var(--button-clicked-bgcolor);
+	color: white;
+	box-shadow: 0 4px 8px var(--button-clicked-bgcolor);
+}
+
+.SelectedProfile {
+	background-color: var(--button-clicked-bgcolor);
+	border-color: var(--button-clicked-bgcolor);
+	color: white;
+	box-shadow: 0 4px 8px var(--button-clicked-bgcolor);
+}
+
+.ProfilePicture {
+	width: 50px;
+	height: 50px;
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+.PermissionsList {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+  padding: 0px;
+  margin: 0px;
+  overflow-y: scroll;
+  max-height: 300px;
+}
+
+.PermissionsSection {
+  display: flex;
+  gap: 10px;
+}
+
+.Permission {
+  display: flex;
+  align-items: center;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  padding: 10px;
+  width: stretch;
+}
+
+.Permission label {
+  min-width: max-content;
+  flex-grow: 1;
+  color: black;
+}

@@ -1,16 +1,16 @@
 import { useState, useEffect, useContext, useRef } from "react";
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import { GlobalContext } from "../../App";
+import SectionHeader from "@/UiComponents/SectionHeader";
+import { GlobalContext } from "@/App";
 import axios from "axios";
 import styles from "./MainPageComponent.module.css";
-import { COMMERCIAL_API_URL } from "../../App";
-import addIcon from '../../assets/plus-square-dotted.svg';
+import { COMMERCIAL_API_URL } from "@/App";
+import addIcon from '@/assets/plus-square-dotted.svg';
 
-export default function MainPageComponent({ projectsChanged, storesChanged }) {
+export default function MainPageComponent({ openTab }) {
   const { 
     refreshToken,
-    setFormSelector,
     setProjectInfo,
     ProjectID,
     setProjectID,
@@ -21,6 +21,9 @@ export default function MainPageComponent({ projectsChanged, storesChanged }) {
   const [ projects, setProjects ] = useState([]);
   const [ stores, setStores ] = useState([]);
   const [ isLoading, setIsLoading ] = useState(true);
+  const [ projectsChanged, setProjectsChanged ] = useState(false);
+  const [ storesChanged, setStoresChanged ] = useState(false);
+  const [ openedForm, setOpenedForm ] = useState("");
   
   const fetchProjects = async () => {
     try {
@@ -63,9 +66,9 @@ export default function MainPageComponent({ projectsChanged, storesChanged }) {
   if (!ProjectID){
     return (
       <div>
-        <div className={styles.SectionHeader}>
+        <SectionHeader>
           <h3>المشروعات</h3>
-        </div>
+        </SectionHeader>
         {refreshToken && 
           <>
             {isLoading ? (
@@ -73,7 +76,7 @@ export default function MainPageComponent({ projectsChanged, storesChanged }) {
             ) : (
               projects.map((project) => (
                 <Card className={styles.ProjectCard} key={project.Project_ID} onClick={() => {
-                  setFormSelector("");
+                  setOpenedForm("");
                   setProjectID(project.Project_ID);
                   setProjectInfo(project);
                 }}>
@@ -84,7 +87,7 @@ export default function MainPageComponent({ projectsChanged, storesChanged }) {
                 </Card>
               ))
             )}
-            <Card className={styles.NewProjectCard} onClick={() => setFormSelector("CreateProjectForm")}>
+            <Card className={styles.NewProjectCard} onClick={() => setOpenedForm("CreateProjectForm")}>
               <CardContent className={styles.NewProjectCardContent}>
                 <img src={addIcon} alt="Add Project" className={styles.AddIcon}/>
                 <text>مشروع جديد</text>
@@ -92,14 +95,15 @@ export default function MainPageComponent({ projectsChanged, storesChanged }) {
             </Card>
           </>
         }
+        {openedForm === "CreateProjectForm" && <CreateProjectForm projectsChanged={projectsChanged} setProjectsChanged={setProjectsChanged} setOpenedForm={setOpenedForm}/>}
       </div>
     )
   } else if (ProjectID && !StoreID){
     return (
       <div>
-        <div className={styles.SectionHeader}>
+        <SectionHeader>
           <h3>المخازن</h3>
-        </div>
+        </SectionHeader>
         {refreshToken && 
           <>
             {isLoading ? (
@@ -107,7 +111,7 @@ export default function MainPageComponent({ projectsChanged, storesChanged }) {
             ) : (
               stores.map((store) => (
                 <Card className={styles.ProjectCard} key={store.Store_ID} onClick={() => {
-                  setFormSelector("");
+                  setOpenedForm("");
                   setStoreID(store.Store_ID);
                   setStoreInfo(store);
                 }}>
@@ -118,7 +122,7 @@ export default function MainPageComponent({ projectsChanged, storesChanged }) {
                 </Card>
               ))
             )}
-            <Card className={styles.NewProjectCard} onClick={() => setFormSelector("CreateStoreForm")}>
+            <Card className={styles.NewProjectCard} onClick={() => setOpenedForm("CreateStoreForm")}>
               <CardContent className={styles.NewProjectCardContent}>
                 <img src={addIcon} alt="Add Store" className={styles.AddIcon}/>
                 <text>مخزن جديد</text>
@@ -126,13 +130,42 @@ export default function MainPageComponent({ projectsChanged, storesChanged }) {
             </Card>
           </>
         }
+        <SectionHeader>
+          <h3>الموارد البشرية</h3>
+        </SectionHeader>
+        <Card className={styles.ProjectCard} onClick={() => openTab(7)}>
+          <CardContent className={styles.ProjectCardContent}>    
+            <h3>الموظفين</h3>
+            <p>إدارة بيانات الموظفين</p>
+          </CardContent>
+        </Card>
+        {openedForm === "CreateStoreForm" && <CreateStoreForm storesChanged={storesChanged} setStoresChanged={setStoresChanged} setOpenedForm={setOpenedForm}/>}
       </div>
+    )
+  } else if (ProjectID && StoreID){
+    return (
+      <MainMenu openTab={openTab}/>
     )
   }
 }
 
-export function CreateProjectForm({ projectsChanged, setProjectsChanged }){
-  const { setFormSelector, setIsLoading, refreshToken } = useContext(GlobalContext);
+function MainMenu({ openTab }) {
+  return (
+    <div>
+      <div className="Tiles-container">
+        <button className="Tile" onClick={() => openTab(1)}>فواتير البيع</button>
+        <button className="Tile" onClick={() => openTab(2)}>فواتير الشراء</button>
+        <button className="Tile" onClick={() => openTab(3)}>التحويلات</button>
+        <button className="Tile" onClick={() => openTab(4)}>المنتجات</button>
+        <button className="Tile" onClick={() => openTab(5)}>حسابات الديون</button>
+        <button className="Tile" onClick={() => openTab(6)}>تعديل الكميات</button>
+      </div>
+    </div>
+  );
+}
+
+export function CreateProjectForm({ projectsChanged, setProjectsChanged, setOpenedForm }){
+  const { setIsLoading, refreshToken } = useContext(GlobalContext);
   const [ Submiting, setSubmiting ] = useState(false);
   const ProjectNameRef = useRef();
   const ProjectDescriptionRef = useRef()
@@ -147,7 +180,7 @@ export function CreateProjectForm({ projectsChanged, setProjectsChanged }){
     await axios.get(COMMERCIAL_API_URL,{params: RequestParms})
     .then((response) => {
       if (!response.data.StatusCode){
-        setFormSelector("");
+        setOpenedForm("");
         setProjectsChanged(!projectsChanged);
         setIsLoading(true);
       } else {
@@ -164,7 +197,7 @@ export function CreateProjectForm({ projectsChanged, setProjectsChanged }){
     <div className='Form-container'>
       <div className="Form">
         <div>
-          <button className="Form-close" onClick={() => setFormSelector("")}>X</button>
+          <button className="Form-close" onClick={() => setOpenedForm("")}>X</button>
         </div>
         <div>
           <label>اسم المشروع</label>
@@ -182,9 +215,8 @@ export function CreateProjectForm({ projectsChanged, setProjectsChanged }){
   );
 }
 
-export function CreateStoreForm({ storesChanged, setStoresChanged }){
-  const { setFormSelector } = useContext(GlobalContext);
-  const { ProjectID, setProjectID } = useContext(GlobalContext);
+export function CreateStoreForm({ storesChanged, setStoresChanged, setOpenedForm }){
+  const { ProjectID, refreshToken } = useContext(GlobalContext);
   const [ Submiting, setSubmiting ] = useState(false);
   const StoreNameRef = useRef();
   const StoreAddressRef = useRef();
@@ -194,12 +226,13 @@ export function CreateStoreForm({ storesChanged, setStoresChanged }){
       RequestType: "AddStore",
       ProjectID: ProjectID,
       StoreName: StoreNameRef.current.value,
-      StoreAddress: StoreAddressRef.current.value
+      StoreAddress: StoreAddressRef.current.value,
+      RefreshToken: refreshToken
     }
     await axios.get(COMMERCIAL_API_URL,{params: RequestParms})
     .then((response) => {
       if (!response.data.StatusCode){
-        setFormSelector("");
+        setOpenedForm("");
         setStoresChanged(!storesChanged);
       }else{
         setSubmiting(false);
@@ -212,7 +245,7 @@ export function CreateStoreForm({ storesChanged, setStoresChanged }){
     <div className='Form-container'>
       <div className="Form">
         <div>
-          <button className="Form-close" onClick={() => setFormSelector("")}>X</button>
+          <button className="Form-close" onClick={() => setOpenedForm("")}>X</button>
         </div>
         <div>
           <label>اسم المخزن</label>

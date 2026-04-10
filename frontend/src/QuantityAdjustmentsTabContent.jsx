@@ -8,9 +8,8 @@ import { COMMERCIAL_API_URL } from './App.jsx';
 const CurrentDateTime = new Date(Date.now());
 const QuantityAdjustmentsContext = createContext();
 
-function QuantityAdjustmentsTabContent({ref}){
-  const { ProjectID } = useContext(GlobalContext);
-  const { StoreID } = useContext(GlobalContext);
+function QuantityAdjustmentsTabContent(){
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   const [ SearchParam, setSearchParam ] = useState({
     OperationID: "",
     ProductName: "",
@@ -55,7 +54,9 @@ function QuantityAdjustmentsTabContent({ref}){
   const fetchOperations = async () => {
     var RequestParams = {
       RequestType:"SearchAdjustmentOperations",
-      ProjectID:ProjectID, StoreID:StoreID
+      ProjectID:ProjectID,
+      StoreID:StoreID,
+      RefreshToken: refreshToken
     };
     if (SearchParam.OperationID){ RequestParams.Operation_ID = SearchParam.OperationID; }
     if (SearchParam.ProductName){ RequestParams.Product_Name = SearchParam.ProductName; }
@@ -81,7 +82,8 @@ function QuantityAdjustmentsTabContent({ref}){
     var RequestParams = {
       RequestType: "DeleteAdjustmentOperation",
       ProjectID: ProjectID, 
-      OperationID: OperationID
+      OperationID: OperationID,
+      RefreshToken: refreshToken
     };
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then(
@@ -97,7 +99,7 @@ function QuantityAdjustmentsTabContent({ref}){
   return(
     <QuantityAdjustmentsContext.Provider value={{ SearchParam, setSearchParam, UpdateTab, setUpdateTab, OperationsList,
       setOperationsList, OpendForm, setOpendForm, SelectedRow, DeleteOperationButtonRef }}>
-      <div className="Main-tab-content">
+      <div className="Page">
         <div className="Table-container">
           <table className="Table">
             <thead>
@@ -134,7 +136,7 @@ function QuantityAdjustmentsTabContent({ref}){
 }
 
 function AddOperationForm(){
-  const { ProjectID, StoreID } = useContext(GlobalContext);
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   const { UpdateTab, setUpdateTab, setOpendForm } = useContext(QuantityAdjustmentsContext);
   const [ Submiting, setSubmiting ] = useState(false);
   const [ ProductInfo, setProductInfo ] = useState({
@@ -160,7 +162,8 @@ function AddOperationForm(){
       StoreID: StoreID,
       Product_ID__Product_Name: NewProductInfo.ProductName,
       Product_ID__Trademark: NewProductInfo.Trademark,
-      Product_ID__Manufacture_Country: NewProductInfo.ManufactureCountry
+      Product_ID__Manufacture_Country: NewProductInfo.ManufactureCountry,
+      RefreshToken: refreshToken
     }
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
@@ -183,6 +186,7 @@ function AddOperationForm(){
       OperationType: Params.OperationType,
       Quantity: Params.Quantity,
       Note: Params.Note,
+      RefreshToken: refreshToken
     };
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then(

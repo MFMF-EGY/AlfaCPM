@@ -2,15 +2,14 @@ from django.shortcuts import render
 from django.http import JsonResponse
 from django.db import connections
 from django.conf import settings
-from django.db.backends.mysql.base import CursorWrapper
 from django.db.models import Max, Q, F
-import os
-import subprocess
 from datetime import datetime
 from decimal import Decimal
-import CommercialAPI.models as project_db_structure
-from CommercialAPI.models import *
-from backend.__init__ import MainDBCursor
+from CommercialAPI.models import Projects_Table
+import CommercialAPI.project_models as project_db_structure
+from CommercialAPI.project_models import *
+import HRAPI.models as hr_models
+from HRAPI.models import *
 from AuthAPI.views import get_refresh_token_user
 
 global SELLING_INVOICE_LENGTH, PURCHASE_INVOICE_LENGTH, REFUND_INVOICE_LENGTH, TRANSITION_DOCUMENT_LENGTH
@@ -19,25 +18,18 @@ PURCHASE_INVOICE_LENGTH = 12
 REFUND_INVOICE_LENGTH = 12
 TRANSITION_DOCUMENT_LENGTH = 12
 
-
+MainDBCursor = connections["default"].cursor()
 ProjectsDBsConnectors = {}
 
-# Enable dictionary fetches for Django cursor
-CursorWrapper.dictfetchall = lambda self: [
-    dict(zip([col[0] for col in self.description], row))
-    for row in self.fetchall()
-]
-CursorWrapper.dictfetchone = lambda self: (
-    dict(zip([col[0] for col in self.description], self.fetchone()))
-    if self.rowcount > 0 else None
-)
 def SetupProjectsDBsConnectors():
-    MainDBCursor.execute("SELECT Project_ID FROM Projects_Table;")
-    ProjectsIDs = MainDBCursor.fetchall()
+    try:
+        ProjectsIDs = list(Projects_Table.objects.all().values_list("Project_ID", flat=True))
+    except:
+        return
     for ProjectID in ProjectsIDs:
-        connections.databases[f"Project{ProjectID[0]}"] = {
+        connections.databases[f"Project{ProjectID}"] = {
             'ENGINE': 'django.db.backends.mysql',
-            'NAME': f"Project{ProjectID[0]}",
+            'NAME': f"Project{ProjectID}",
             'HOST': 'localhost',
             'PORT': '3306',
             'USER': 'alfacpm',
@@ -51,14 +43,14 @@ def SetupProjectsDBsConnectors():
             'CONN_MAX_AGE': 0,
             'ATOMIC_REQUESTS': False,
             'TEST': {
-                'NAME': f"Project{ProjectID[0]}",
+                'NAME': f"Project{ProjectID}",
                 'MIRROR': None,
                 'CHARSET': None,
                 'COLLATION': None,
                 'MIGRATE': False,
             },
         }
-        ProjectsDBsConnectors[ProjectID[0]] = 1
+        ProjectsDBsConnectors[ProjectID] = 1
 
 SetupProjectsDBsConnectors()
 GeneratedSql = ""
@@ -80,6 +72,8 @@ class ErrorCodes:
     NonexistentProduct = 15
     DBStructureError = 16
     UserNotFound = 17
+    Unauthorized = 18
+
 
 def isnumberstr(value):
     try:
@@ -106,13 +100,16 @@ class ProcessRequest:
         if ProjectName == "foo" and not Test:
             return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"ProjectName"}
         # Check if project has unique name
-        MainDBCursor.execute(f"SELECT Project_Name FROM Projects_Table WHERE Project_Name = '{RequestList["ProjectName"]}'");
-        if MainDBCursor.fetchone() is not None:
+        if Projects_Table.objects.filter(Project_Name=ProjectName).exists():
             return {"StatusCode":ErrorCodes.RedundantValue,"Variable":"ProjectName"}
 
-        MainDBCursor.execute("INSERT INTO Projects_Table(Project_Name, Project_Owner,Project_Description) VALUES ('%s','%s','%s')" % (ProjectName,user.id,ProjectDescription))
-        MainDBCursor.execute("SELECT LAST_INSERT_ID();")
-        ProjectID = MainDBCursor.fetchone()[0]
+        new_project = Projects_Table(
+            Project_Name = ProjectName,
+            Project_Description = ProjectDescription,
+            Project_Owner = user
+        )
+        new_project.save()
+        ProjectID = new_project.Project_ID
         MainDBCursor.execute(f"CREATE DATABASE Project{ProjectID};")
 
         connections.databases[f"Project{ProjectID}"] = {
@@ -144,9 +141,13 @@ class ProcessRequest:
                 model = getattr(project_db_structure, model_name)
                 if hasattr(model, '_meta'):
                     schema_editor.create_model(model)
+            for model_name in dir(hr_models):
+                model = getattr(hr_models, model_name)
+                if hasattr(model, '_meta'):
+                    schema_editor.create_model(model)
         connections[f"Project{ProjectID}"].commit()
         NewDBCursor.close()
-        connections["MainDB"].commit()
+        
         MainDBCursor.execute("USE MainDB;")
         ProjectsDBsConnectors[ProjectID] = 1
         if Test:
@@ -155,8 +156,8 @@ class ProcessRequest:
 
     @staticmethod
     def GetProjects():
-        MainDBCursor.execute("SELECT * FROM Projects_Table;")
-        return {"StatusCode":0,"Data":MainDBCursor.dictfetchall()}
+        projects = Projects_Table.objects.all()
+        return {"StatusCode":0,"Data":list(projects.values())}
 
     @staticmethod
     def CreateAccount(DBName, RequestList):
@@ -677,6 +678,7 @@ class ProcessRequest:
         del RequestList["RequestType"]
         del RequestList["ProjectID"]
         del RequestList["StoreID"]
+        del RequestList["RefreshToken"]
         FilterArguments = FilterArguments | {f+"__contains": RequestList[f] for f in RequestList.keys()}
         products_list = (
             Product_Quantity_Table.objects.using(DBName)
@@ -713,6 +715,7 @@ class ProcessRequest:
         del RequestList["InvoiceType"]
         del RequestList["FromDateTime"]
         del RequestList["ToDateTime"]
+        del RequestList["RefreshToken"]
         FilterArguments = FilterArguments | {f+"__contains": RequestList[f] for f in RequestList.keys()}
         match InvoiceType:
             case "Selling":
@@ -738,6 +741,7 @@ class ProcessRequest:
         del RequestList["StoreID"]
         del RequestList["FromDateTime"]
         del RequestList["ToDateTime"]
+        del RequestList["RefreshToken"]
         if "Source_Store_ID" in RequestList and "Destination_Store_ID" in RequestList:
             StoreFilter = Q(Source_Store_ID=RequestList["Source_Store_ID"]) | Q(Destination_Store_ID=RequestList["Destination_Store_ID"])
             del RequestList["Source_Store_ID"]
@@ -849,17 +853,14 @@ class ProcessRequest:
             RequestList["OperationType"], RequestList["ProductID"], RequestList["Quantity"])
         match OperationType:
             case "MoreThanPurchaseInvoice" | "Fixed" | "Found":
-                # Cursor.execute(f"UPDATE Product_Quantity_Table SET Quantity = Quantity + {Quantity} WHERE Store_ID={StoreID} AND Product_ID={ProductID};")
                 Product_Quantity_Table.objects.using(DBName).filter(
                     Store_ID=store, Product_ID=ProductID
                 ).update(Quantity=F("Quantity") + Quantity)
             case "LessThanPurchaseInvoice" | "Damaged" | "Lost":
-                # Cursor.execute(f"SELECT Quantity FROM Product_Quantity_Table WHERE Store_ID={StoreID} AND Product_ID={ProductID};")
                 product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=store, Product_ID=ProductID)
                 if product_quantity.Quantity < Decimal(Quantity):
                     return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductID":ProductID}
                 Product_Quantity_Table.objects.using(DBName).filter(Store_ID=store, Product_ID=ProductID).update(Quantity=F('Quantity') - Quantity)
-        # Cursor.execute(f"INSERT INTO Products_Quantities_Adjustments(Store_ID,Product_ID,Operation_Type,Quantity,Note) VALUES ('{StoreID}','{ProductID}','{OperationType}','{Quantity}','{Note}');")
         adjustment_operation = Products_Quantities_Adjustments(
             Store_ID = store,
             Product_ID = Products_Table.objects.using(DBName).get(Product_ID=ProductID),
@@ -882,6 +883,7 @@ class ProcessRequest:
         del RequestList["StoreID"]
         del RequestList["FromDateTime"]
         del RequestList["ToDateTime"]
+        del RequestList["RefreshToken"]
         FilterArguments = FilterArguments | {f+"__contains": RequestList[f] for f in RequestList.keys()}
         adjustments_list = (
             Products_Quantities_Adjustments.objects.using(DBName)
@@ -924,7 +926,7 @@ class SearchFiltersValidation:
                     if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
                 case "Selling_Price":
                     if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-                case "RequestType" | "InvoiceType" | "ProjectID" | "StoreID"| "FromDateTime"| "ToDateTime":
+                case "RequestType" | "InvoiceType" | "ProjectID" | "StoreID" | "FromDateTime" | "ToDateTime" | "RefreshToken":
                     pass
                 case _:
                     return {"StatusCode":ErrorCodes.InvalidValue,"Filter":Filter}
@@ -950,7 +952,7 @@ class SearchFiltersValidation:
                     if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
                 case "Purchase_Price":
                     if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-                case "RequestType" | "InvoiceType" | "ProjectID" | "StoreID"| "FromDateTime"| "ToDateTime":
+                case "RequestType" | "InvoiceType" | "ProjectID" | "StoreID" | "FromDateTime" | "ToDateTime" | "RefreshToken":
                     pass
                 case _:
                     return {"StatusCode":ErrorCodes.InvalidValue,"Filter":Filter}
@@ -1051,6 +1053,22 @@ def getTransitionItems(DBName, RequestList: dict):
         Item["TotalQuantity"] = Decimal(Item["LargeQuantity"]) * ConvertionRate + Decimal(Item["SmallQuantity"])
         i += 1
     return Items
+
+def checkPermissions(RefreshToken, ProjectID, Permission):
+    if not (user := get_refresh_token_user(RefreshToken)): return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"RefreshToken"}
+    if user == 1: return {"StatusCode":ErrorCodes.UserNotFound,"Data":""}
+    # Check if user is owner of the project.
+    if Projects_Table.objects.filter(Project_ID=ProjectID, Project_Owner=user).exists():
+        return 0
+    # Check if user is employee in the project.
+    employee_account = Project_Employees.objects.using(f"Project{ProjectID}").filter(Account_ID=user.id).first()
+    if employee_account is None: return {"StatusCode":ErrorCodes.Unauthorized,"Data":""}
+    # Check if employee has the required permission.
+    employee_permissions = Employee_Permissions.objects.using(f"Project{ProjectID}").get(Employee_ID=employee_account.Employee_ID)
+    if not employee_permissions.__dict__.get(Permission, False):
+        return {"StatusCode":ErrorCodes.Unauthorized,"Data":""}
+    return 0
+
 ValidInvoiceTypes = ["Selling","Purchase"]
 class CheckValidation:
     @staticmethod
@@ -1081,13 +1099,15 @@ class CheckValidation:
     @staticmethod
     def AddStore(RequestList):
         try:
-            ProjectID, StoreName = RequestList["ProjectID"], RequestList["StoreName"]
+            ProjectID, StoreName, RefreshToken = RequestList["ProjectID"], RequestList["StoreName"], RequestList["RefreshToken"]
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
         if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"ProjectID"}
 
         if len(StoreName) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"StoreName"}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Add_Store")):
+            return error
         return ProcessRequest.AddStore(f"Project{ProjectID}", RequestList)
 
     @staticmethod
@@ -1112,8 +1132,11 @@ class CheckValidation:
                 PurchasePrice,
                 WholesalePrice,
                 RetailPrice,
+                LargeQuantityUnit,
                 SmallQuantityUnit,
+                ConversionRate,
                 PartialSmallQuantityAllowed,
+                RefreshToken
             ) = (
                 RequestList["ProjectID"],
                 RequestList["ProductName"],
@@ -1122,8 +1145,11 @@ class CheckValidation:
                 RequestList["PurchasePrice"],
                 RequestList["WholesalePrice"],
                 RequestList["RetailPrice"],
+                RequestList["LargeQuantityUnit"],
                 RequestList["SmallQuantityUnit"],
+                RequestList["ConversionRate"],
                 RequestList["PartialSmallQuantityAllowed"],
+                RequestList["RefreshToken"]
             )
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
@@ -1140,24 +1166,20 @@ class CheckValidation:
         if len(Trademark) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"Trademark"}
         if len(ManufactureCountry) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ManufactureCountry"}
 
-        if (ConversionRate := RequestList.get("ConversionRate")) is not None and (LargeQuantityUnit := RequestList.get("LargeQuantityUnit")) is not None:
-            if not isnumberstr(ConversionRate): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ConversionRate"}
-            ConversionRate = float(ConversionRate)
-            if ConversionRate <= 1.0:
-                return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"ConversionRate"}
-            if len(LargeQuantityUnit) == 0:
-                return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"LargeQuantityUnit"}
-        elif (ConversionRate is None) and (LargeQuantityUnit is not None):
-            return {"StatusCode":ErrorCodes.MissingVariables,"Variable":"ConversionRate"}
-        elif (ConversionRate is not None) and (LargeQuantityUnit is None):
-            return {"StatusCode":ErrorCodes.MissingVariables,"Variable":"LargeQuantityUnit"}
-        if isnumberstr(ConversionRate) is False: return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ConversionRate"}
+        if not isnumberstr(ConversionRate): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ConversionRate"}
+        ConversionRate = float(ConversionRate)
+        if ConversionRate <= 1.0:
+            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"ConversionRate"}
+        if len(LargeQuantityUnit) == 0:
+            return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"LargeQuantityUnit"}
         if len(SmallQuantityUnit) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"SmallQuantityUnit"}
         if PartialSmallQuantityAllowed not in ["True","False"]:
             return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"PartialSmallQuantityAllowed"}
         if float(PurchasePrice) < 0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
         if float(WholesalePrice) < 0:return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
         if float(RetailPrice) < 0:return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Add_Product")):
+            return error
         return ProcessRequest.AddProduct(f"Project{ProjectID}", RequestList)
 
     @staticmethod
@@ -1176,6 +1198,7 @@ class CheckValidation:
                 SmallQuantityUnit,
                 ConversionRate,
                 PartialSmallQuantityAllowed,
+                RefreshToken
             ) = (
                 RequestList["ProjectID"],
                 RequestList["ProductID"],
@@ -1189,6 +1212,7 @@ class CheckValidation:
                 RequestList["SmallQuantityUnit"],
                 RequestList["ConversionRate"],
                 RequestList["PartialSmallQuantityAllowed"],
+                RequestList["RefreshToken"]
             )
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
@@ -1209,17 +1233,12 @@ class CheckValidation:
         if len(Trademark) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"Trademark"}
         if len(ManufactureCountry) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ManufactureCountry"}
 
-        if (ConversionRate := RequestList.get("ConversionRate")) is not None and (LargeQuantityUnit := RequestList.get("LargeQuantityUnit")) is not None:
-            if not isnumberstr(ConversionRate): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ConversionRate"}
-            ConversionRate = float(ConversionRate)
-            if ConversionRate <= 1.0:
-                return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"ConversionRate"}
-            if len(LargeQuantityUnit) == 0:
-                return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"LargeQuantityUnit"}
-        elif (ConversionRate is None) and (LargeQuantityUnit is not None):
-            return {"StatusCode":ErrorCodes.MissingVariables,"Variable":"ConversionRate"}
-        elif (ConversionRate is not None) and (LargeQuantityUnit is None):
-            return {"StatusCode":ErrorCodes.MissingVariables,"Variable":"LargeQuantityUnit"}
+        if not isnumberstr(ConversionRate): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ConversionRate"}
+        ConversionRate = float(ConversionRate)
+        if ConversionRate <= 1.0:
+            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"ConversionRate"}
+        if len(LargeQuantityUnit) == 0:
+            return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"LargeQuantityUnit"}
         if isnumberstr(ConversionRate) is False: return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ConversionRate"}
         if len(SmallQuantityUnit) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"SmallQuantityUnit"}
         if PartialSmallQuantityAllowed not in ["True","False"]:
@@ -1227,6 +1246,8 @@ class CheckValidation:
         if float(PurchasePrice) < 0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
         if float(WholesalePrice) < 0:return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
         if float(RetailPrice) < 0:return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Product")):
+            return error
         return ProcessRequest.EditProductInfo(f"Project{ProjectID}", RequestList)
 
     @staticmethod
@@ -1261,16 +1282,27 @@ class CheckValidation:
         if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
         if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
         if not isintstr(StoreID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        store = Stores_Table.objects.using(f"Project{ProjectID}").get(Store_ID=StoreID)
-        if store is None:
+
+        if not (store := Stores_Table.objects.using(f"Project{ProjectID}").filter(Store_ID=StoreID).first()):
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
         return ProcessRequest.GetProductsQuantities(f"Project{ProjectID}", ProductsIDs, store)
 
     @staticmethod
     def Sell(RequestList):
         try:
-            ProjectID, StoreID, ClientName, Paid = (
-                RequestList["ProjectID"],RequestList["StoreID"], RequestList["ClientName"], RequestList["Paid"])
+            (
+                ProjectID,
+                StoreID,
+                ClientName,
+                Paid,
+                RefreshToken
+            ) = (
+                RequestList["ProjectID"],
+                RequestList["StoreID"],
+                RequestList["ClientName"],
+                RequestList["Paid"],
+                RequestList["RefreshToken"],
+            )
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
@@ -1281,8 +1313,8 @@ class CheckValidation:
         if not isnumberstr(Paid): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
         RequestList["Paid"] = Decimal(Paid)
         if RequestList["Paid"] < 0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
-        store = Stores_Table.objects.using(f"Project{ProjectID}").get(Store_ID=StoreID)
-        if store is None:
+
+        if not (store := Stores_Table.objects.using(f"Project{ProjectID}").filter(Store_ID=StoreID).first()):
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
         Items, TotalPrice = GetItems(f"Project{ProjectID}", RequestList)
         if isinstance(Items, dict):
@@ -1291,16 +1323,19 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.MissingVariables,"Variable":"Items"}
         if RequestList["Paid"] > TotalPrice:
             return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Paid"}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Sell")):
+            return error
         return ProcessRequest.Sell(f"Project{ProjectID}", RequestList, Items, TotalPrice, store)
 
     @staticmethod
     def Purchase(RequestList):
         try:
-            ProjectID, StoreID, SellerName, Paid = (
+            ProjectID, StoreID, SellerName, Paid, RefreshToken = (
                 RequestList["ProjectID"],
                 RequestList["StoreID"],
                 RequestList["SellerName"],
                 RequestList["Paid"],
+                RequestList["RefreshToken"]
             )
         except:
             return {"StatusCode":ErrorCodes.MissingVariables, "Data":""}
@@ -1311,8 +1346,7 @@ class CheckValidation:
         if not isnumberstr(Paid): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"Paid"}
         RequestList["Paid"] = Decimal(Paid)
         if RequestList["Paid"] < 0: return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Paid"}
-        store = Stores_Table.objects.using(f"Project{ProjectID}").get(Store_ID=StoreID)
-        if store is None:
+        if not (store := Stores_Table.objects.using(f"Project{ProjectID}").filter(Store_ID=StoreID).first()):
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
         Items, TotalPrice = GetItems(f"Project{ProjectID}", RequestList)
         if isinstance(Items, dict):
@@ -1321,13 +1355,20 @@ class CheckValidation:
             return {"StatusCode":ErrorCodes.MissingVariables,"Variable":"Items"}
         if RequestList["Paid"] > TotalPrice:
             return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Paid"}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Purchase")):
+            return error
         return ProcessRequest.Purchase(f"Project{ProjectID}", RequestList, Items, TotalPrice, store)
 
     @staticmethod
     def EditSellingInvoice(RequestList):
         try:
-            ProjectID, InvoiceID, ClientName, Paid = (
-                RequestList["ProjectID"], RequestList["InvoiceID"], RequestList["ClientName"], RequestList["Paid"])
+            ProjectID, InvoiceID, ClientName, Paid, RefreshToken = (
+                RequestList["ProjectID"],
+                RequestList["InvoiceID"],
+                RequestList["ClientName"],
+                RequestList["Paid"],
+                RequestList["RefreshToken"],
+            )
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
@@ -1347,13 +1388,15 @@ class CheckValidation:
         RequestList["Paid"] = Decimal(Paid)
         if RequestList["Paid"] > TotalPrice:
             return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Paid"}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Selling")):
+            return error
         return ProcessRequest.EditSellingInvoice(f"Project{ProjectID}", selling_invoice, RequestList, Items, TotalPrice)
 
     @staticmethod
     def EditPurchaseInvoice(RequestList):
         try:
-            ProjectID, InvoiceID, SellerName, Paid = (
-                RequestList["ProjectID"], RequestList["InvoiceID"], RequestList["SellerName"], RequestList["Paid"])
+            ProjectID, InvoiceID, SellerName, Paid, RefreshToken = (
+                RequestList["ProjectID"], RequestList["InvoiceID"], RequestList["SellerName"], RequestList["Paid"], RequestList["RefreshToken"])
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
@@ -1374,13 +1417,19 @@ class CheckValidation:
         RequestList["Paid"] = Decimal(Paid)
         if RequestList["Paid"] > TotalPrice:
             return {"StatusCode":ErrorCodes.InvalidValue,"Variable": "Paid"}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Purchase")):
+            return error
         return ProcessRequest.EditPurchaseInvoice(f"Project{ProjectID}", purchase_invoice, RequestList, Items, TotalPrice)
 
     @staticmethod
     def EditTransitionDocument(RequestList):
         try:
-            ProjectID, DocumentID, DestinationStoreID = (RequestList["ProjectID"],
-                RequestList["DocumentID"], RequestList["DestinationStoreID"])
+            ProjectID, DocumentID, DestinationStoreID, RefreshToken = (
+                RequestList["ProjectID"],
+                RequestList["DocumentID"],
+                RequestList["DestinationStoreID"],
+                RequestList["RefreshToken"],
+            )
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Variable": "ProjectID"}
@@ -1397,6 +1446,8 @@ class CheckValidation:
             return Items
         if len(Items) == 0:
             return {"StatusCode": ErrorCodes.MissingVariables, "Variable": "Products"}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Transition")):
+            return error
         return ProcessRequest.EditTransitionDocument(f"Project{ProjectID}", transition_document, destination_store, Items)
 
     @staticmethod
@@ -1430,7 +1481,7 @@ class CheckValidation:
     @staticmethod
     def DeleteTransitionDocument(RequestList):
         try:
-            ProjectID, DocumentID = RequestList["ProjectID"], RequestList["DocumentID"]
+            ProjectID, DocumentID, RefreshToken = RequestList["ProjectID"], RequestList["DocumentID"], RequestList["RefreshToken"]
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
@@ -1439,12 +1490,15 @@ class CheckValidation:
         transition_document = Transition_Documents.objects.using(f"Project{ProjectID}").filter(Document_ID=DocumentID).first()
         if transition_document is None:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"DocumentID"}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Delete_Transition")):
+            return error
+
         return ProcessRequest.DeleteTransitionDocument(f"Project{ProjectID}", transition_document)
 
     @staticmethod
     def DeleteAdjustmentOperation(RequestList):
         try:
-            ProjectID, OperationID = RequestList["ProjectID"], RequestList["OperationID"]
+            ProjectID, OperationID, RefreshToken = RequestList["ProjectID"], RequestList["OperationID"], RequestList["RefreshToken"]
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
@@ -1453,6 +1507,8 @@ class CheckValidation:
         adjustment_operation = Products_Quantities_Adjustments.objects.using(f"Project{ProjectID}").filter(Operation_ID=OperationID).first()
         if adjustment_operation is None:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"OperationID"}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Delete_Adjustment")):
+            return error
         return ProcessRequest.DeleteAdjustmentOperation(f"Project{ProjectID}", adjustment_operation)
 
     @staticmethod
@@ -1497,8 +1553,8 @@ class CheckValidation:
     @staticmethod
     def Transit(RequestList):
         try:
-            ProjectID, SourceStoreID, DestinationStoreID = (RequestList["ProjectID"],
-                RequestList["SourceStoreID"], RequestList["DestinationStoreID"])
+            ProjectID, SourceStoreID, DestinationStoreID, RefreshToken = (RequestList["ProjectID"],
+                RequestList["SourceStoreID"], RequestList["DestinationStoreID"], RequestList["RefreshToken"])
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Variable": "ProjectID"}
@@ -1518,6 +1574,8 @@ class CheckValidation:
             return Items
         if len(Items) == 0:
             return {"StatusCode": ErrorCodes.MissingVariables, "Variable": "Products"}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Transition")):
+            return error
         return ProcessRequest.Transit(f"Project{ProjectID}", Items, source_store, destination_store)
 
     @staticmethod
@@ -1543,7 +1601,7 @@ class CheckValidation:
                     if not isnumberstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
                 case "Product_ID__Large_Quantity_Unit" | "Product_ID__Small_Quantity_Unit":
                     if not isnumberstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-                case "RequestType" | "ProjectID" | "StoreID":
+                case "RequestType" | "ProjectID" | "StoreID" | "RefreshToken":
                     pass
                 case _:
                     return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Filter","Filter":Filter}
@@ -1553,8 +1611,13 @@ class CheckValidation:
     @staticmethod
     def SearchInvoices(RequestList):
         try:
-            ProjectID, InvoiceType, StoreID, FromDateTime, ToDateTime = (RequestList["ProjectID"], RequestList["InvoiceType"],
-                RequestList["StoreID"], RequestList["FromDateTime"], RequestList["ToDateTime"])
+            ProjectID, InvoiceType, StoreID, FromDateTime, ToDateTime = (
+                RequestList["ProjectID"],
+                RequestList["InvoiceType"],
+                RequestList["StoreID"],
+                RequestList["FromDateTime"],
+                RequestList["ToDateTime"],
+            )
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
         if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
@@ -1616,7 +1679,7 @@ class CheckValidation:
                             "StatusCode": ErrorCodes.InvalidDataType,
                             "Variable": Filter,
                         }
-                case "RequestType" | "InvoiceType" | "ProjectID" | "StoreID" | "FromDateTime" | "ToDateTime":
+                case "RequestType" | "InvoiceType" | "ProjectID" | "StoreID" | "FromDateTime" | "ToDateTime" | "RefreshToken":
                     pass
                 case _:
                     return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Filter","Filter":Filter}
@@ -1648,12 +1711,13 @@ class CheckValidation:
     @staticmethod
     def AdjustProductQuantity(RequestList):
         try:
-            ProjectID, StoreID, OperationType, ProductID, Quantity = (
+            ProjectID, StoreID, OperationType, ProductID, Quantity, RefreshToken = (
                 RequestList["ProjectID"],
                 RequestList["StoreID"],
                 RequestList["OperationType"],
                 RequestList["ProductID"],
                 RequestList["Quantity"],
+                RequestList["RefreshToken"],
             )
         except:
             return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
@@ -1667,6 +1731,9 @@ class CheckValidation:
         store = Stores_Table.objects.using(f"Project{ProjectID}").filter(Store_ID=StoreID).first()
         if store is None:
             return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
+        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Adjust_Quantity")):
+            return error
+
         return ProcessRequest.AdjustProductQuantity(f"Project{ProjectID}", RequestList, store)
 
     @staticmethod
@@ -1702,7 +1769,19 @@ class CheckValidation:
                             "StatusCode": ErrorCodes.InvalidDataType,
                             "Variable": Filter,
                         }
-                case "RequestType" | "OperationType" | "ProjectID" | "StoreID" | "Product_Name" | "Trademark" | "Manufacture_Country" | "Note" | "FromDateTime" | "ToDateTime":
+                case (
+                    "RequestType"
+                    | "OperationType"
+                    | "ProjectID"
+                    | "StoreID"
+                    | "Product_Name"
+                    | "Trademark"
+                    | "Manufacture_Country"
+                    | "Note"
+                    | "FromDateTime"
+                    | "ToDateTime"
+                    | "RefreshToken"
+                ):
                     pass
                 case _:
                     return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Filter","Filter":Filter}
@@ -1724,8 +1803,8 @@ def StartRequestProcessing(Request):
             Response = CheckValidation.CreateProject(RequestList)
         case "GetProjects":
             Response = ProcessRequest.GetProjects()
-        case "CreateAccount":
-            Response = CheckValidation.CreateAccount(RequestList)
+        # case "CreateAccount":
+        #     Response = CheckValidation.CreateAccount(RequestList)
         case "AddStore":
             Response = CheckValidation.AddStore(RequestList)
         case "AddProduct":
@@ -1758,10 +1837,10 @@ def StartRequestProcessing(Request):
             Response = CheckValidation.DeleteTransitionDocument(RequestList)
         case "DeleteAdjustmentOperation":
             Response = CheckValidation.DeleteAdjustmentOperation(RequestList)
-        case "AddToAccount":
-            Response = CheckValidation.AddToAccount(RequestList)
-        case "DeductFromAccount":
-            Response = CheckValidation.DeductFromAccount(RequestList)
+        # case "AddToAccount":
+        #     Response = CheckValidation.AddToAccount(RequestList)
+        # case "DeductFromAccount":
+        #     Response = CheckValidation.DeductFromAccount(RequestList)
         case "SearchProducts":
             Response = CheckValidation.SearchProducts(RequestList)
         case "SearchInvoices":

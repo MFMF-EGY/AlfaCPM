@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'CommercialAPI',
     'AuthAPI',
+    'AccountsAPI',
+    'HRAPI',
     'rest_framework',
     'corsheaders',
 ]
@@ -84,10 +86,6 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    },
-    'MainDB': {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'MainDB',
         'HOST': 'localhost',
@@ -97,7 +95,6 @@ DATABASES = {
         'OPTIONS': {
             'charset': 'utf8mb4'
         },
-        'AUTOCOMMIT': False,
         'CONN_HEALTH_CHECKS': False,
         'CONN_MAX_AGE': 0,
         'ATOMIC_REQUESTS': False,

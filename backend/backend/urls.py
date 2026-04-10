@@ -18,6 +18,8 @@ from django.contrib import admin
 from django.urls import path
 import CommercialAPI.views
 import AuthAPI.views
+import HRAPI.views
+import AccountsAPI.views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -28,4 +30,8 @@ urlpatterns = [
     path('apis/v1.0/auth/login', AuthAPI.views.login),
     #path('apis/v1.0/auth/request_password_reset', AuthAPI.views.request_password_reset),
     #path('apis/v1.0/auth/reset_password', AuthAPI.views.reset_password),
+    path('apis/v1.0/accounts/accounts', AccountsAPI.views.get_user_accounts),
+    path('apis/v1.0/accounts/unemployed', AccountsAPI.views.get_unemployed_users),
+    path('apis/v1.0/hr/employees', HRAPI.views.EmployeesList.as_view()),
+    path('apis/v1.0/hr/permissions', HRAPI.views.EmployeePermissions.as_view()),
 ]

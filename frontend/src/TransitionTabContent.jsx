@@ -10,9 +10,8 @@ const CurrentDateTime = new Date(Date.now());
 const TransitionTabContext = createContext();
 
 export function TransitionTabContent(){
-  const { ProjectID } = useContext(GlobalContext);
-  const { StoreID } = useContext(GlobalContext);
-  const [SearchParams, setSearchParams] = useState({
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
+  const [ SearchParams, setSearchParams ] = useState({
     DocumentID: "",
     FromDateTime:
       CurrentDateTime.getFullYear() +
@@ -59,7 +58,8 @@ export function TransitionTabContent(){
     let RequestParams = {
       RequestType: "SearchTransitionDocuments",
       ProjectID: ProjectID,
-      StoreID: StoreID
+      StoreID: StoreID,
+      RefreshToken: refreshToken
     }
     if (SearchParams.DocumentID){RequestParams.Document_ID = SearchParams.DocumentID;}
     if (SearchParams.FromDateTime){RequestParams.FromDateTime = SearchParams.FromDateTime;}
@@ -122,7 +122,7 @@ export function TransitionTabContent(){
   return (
     <TransitionTabContext.Provider value={{ SearchParams, setSearchParams, UpdateTab, setUpdateTab, DocumentsList,
       setDocumentsList, OpendForm, setOpendForm, SelectedRow, EditDocumentButtonRef, DeleteDocumentButtonRef, PrintDocumentButtonRef }}>
-      <div className="Main-tab-content">
+      <div className="Page">
         <div className="Table-container">
           <table className="Table" id="Transition-documents-table">
             <thead>
@@ -156,8 +156,7 @@ export function TransitionTabContent(){
   )
 }
 function CreateDocumentForm(){
-  const { ProjectID } = useContext(GlobalContext);
-  const { StoreID } = useContext(GlobalContext);
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   const { setOpendForm, UpdateTab, setUpdateTab } = useContext(TransitionTabContext);
   const [ Submiting, setSubmiting ] = useState(false);
   const [ Stores, setStores ] = useState([]);
@@ -185,6 +184,7 @@ function CreateDocumentForm(){
       RequestType: "GetProductsQuantities",
       ProjectID: ProjectID,
       StoreID: StoreID,
+      RefreshToken: refreshToken
     }
     let ProductIDs = ItemsList.map((item) => item.ProductID);
     for (let i = 0; i < ProductIDs.length; i++){
@@ -216,7 +216,8 @@ function CreateDocumentForm(){
         LargeQuantityUnit: item.LargeQuantityUnit,
         SmallQuantity: item.SmallQuantity,
         SmallQuantityUnit: item.SmallQuantityUnit
-      } : null))
+      } : null)),
+      RefreshToken: refreshToken
     }
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
@@ -241,7 +242,8 @@ function CreateDocumentForm(){
   useEffect(() => {
     let RequestParams = {
       RequestType: "GetStores",
-      ProjectID: ProjectID
+      ProjectID: ProjectID,
+      RefreshToken: refreshToken
     }
     axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
@@ -344,7 +346,7 @@ function CreateDocumentForm(){
 }
 
 function SearchDocumentForm(){
-  const { ProjectID } = useContext(GlobalContext);
+  const { ProjectID, refreshToken } = useContext(GlobalContext);
   const { SearchParams, setSearchParams, UpdateTab, setUpdateTab, setOpendForm } = useContext(TransitionTabContext);
   const [ Stores, setStores ] = useState([]);
 
@@ -420,7 +422,8 @@ function SearchDocumentForm(){
   useEffect(() => {
     let RequestParams = {
       RequestType: "GetStores",
-      ProjectID: ProjectID
+      ProjectID: ProjectID,
+      RefreshToken: refreshToken
     }
     axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
@@ -487,8 +490,7 @@ function SearchDocumentForm(){
 }
 
 function EditDocumentForm(){
-  const { ProjectID } = useContext(GlobalContext);
-  const { StoreID } = useContext(GlobalContext);
+  const { ProjectID, StoreID, refreshToken } = useContext(GlobalContext);
   const { UpdateTab, setUpdateTab, setOpendForm, SelectedRow } = useContext(TransitionTabContext);
   const [ Stores, setStores ] = useState([])
   const [ Loading, setLoading ] = useState(true);
@@ -518,7 +520,8 @@ function EditDocumentForm(){
     let RequestParams = {
       RequestType: "GetTransitionDocument",
       ProjectID: ProjectID,
-      DocumentID: SelectedRow.current.children[1].innerText
+      DocumentID: SelectedRow.current.children[1].innerText,
+      RefreshToken: refreshToken
     }
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
     .then((response) => {
@@ -571,6 +574,7 @@ function EditDocumentForm(){
       RequestType: "GetProductsQuantities",
       ProjectID: ProjectID,
       StoreID: StoreID,
+      RefreshToken: refreshToken
     }
     let ProductIDs = ItemsList.map((item) => item.ProductID);
     for (let i = 0; i < ProductIDs.length; i++){
@@ -600,7 +604,8 @@ function EditDocumentForm(){
         ProductID: item.ProductID,
         LargeQuantity: item.LargeQuantity,
         SmallQuantity: item.SmallQuantity
-      } : null))
+      } : null)),
+      RefreshToken: refreshToken
     }
     await axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {
@@ -621,7 +626,8 @@ function EditDocumentForm(){
   useEffect(() => {
     let RequestParams = {
       RequestType: "GetStores",
-      ProjectID: ProjectID
+      ProjectID: ProjectID,
+      RefreshToken: refreshToken
     }
     axios.get(COMMERCIAL_API_URL, {params: RequestParams})
       .then((response) => {

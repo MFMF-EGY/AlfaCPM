@@ -3,8 +3,7 @@ import { GlobalContext } from '../../App.jsx';
 import styles from "./PathComponent.module.css";
 
 export default function PathComponent() {
-  const { ProjectID, setProjectID, ProjectInfo, StoreID, setStoreID, StoreInfo } =
-    useContext(GlobalContext);
+  const { ProjectID, setProjectID, ProjectInfo, StoreID, setStoreID, StoreInfo } = useContext(GlobalContext);
   return (
     <div className={styles.PathComponent}>
       <a onClick={()=>{
@@ -14,8 +13,7 @@ export default function PathComponent() {
       {ProjectID && 
         <>
           <span> / </span>
-          <a onClick={()=>{            setStoreID(null)
-          }}>{ProjectInfo?.Project_Name}</a>
+          <a onClick={() => {setStoreID(null)}}>{ProjectInfo?.Project_Name}</a>
         </>
       }
       {StoreID && 

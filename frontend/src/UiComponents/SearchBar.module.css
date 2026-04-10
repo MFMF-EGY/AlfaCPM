@@ -1,0 +1,39 @@
+.SearchBarContainer {
+  display: flex;
+  align-items: center;
+  position: relative;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+}
+
+.SearchBar {
+  padding: 10px;
+  border: none;
+  width: 100%;
+  box-sizing: border-box;
+  color: #000;
+  outline: none;
+}
+
+.SearchBar::placeholder {
+	color: #999;
+}
+
+.SearchButton {
+  width: 40px;
+  height: 40px;
+  padding: 10px 10px;
+  position: relative;
+  border: none;
+  border-radius: 100%;
+  background-color: var(--button-bgcolor);
+  color: white;
+  cursor: pointer;
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.SearchButton svg {
+  fill: #ccc;
+  width: 16px;
+  height: 16px;
+}
