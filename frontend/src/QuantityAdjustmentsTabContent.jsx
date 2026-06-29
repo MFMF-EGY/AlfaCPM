@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef, createContext, useContext, use } from 'react';
-import { TabPanel } from 'react-tabs';
+import { useState, useEffect, useRef, createContext, useContext } from 'react';
 import axios from 'axios';
 import SuggestionsInput from './UiComponents/SuggestionsInput.jsx';
 import { GlobalContext } from './App.jsx';
