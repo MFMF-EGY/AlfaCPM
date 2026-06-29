@@ -1,8 +1,9 @@
 #!/bin/bash
-name=$(basename $0)
+root="$(dirname "$(realpath "$0/..")")"
 db_user="alfacpm"
 db_password="000600"
 exit_code=0
+
 
 check_installed() {
   if ! [ -x "$(command -v $1)" ]; then
@@ -13,12 +14,34 @@ check_installed() {
   fi
 }
 
-check_installed_python_package() {
-  if ! python3 -c "import $1" &> /dev/null; then
-    echo " Python package $1 is not installed." >&2
-    exit_code=1
+check_installed_python_packages() {
+  # Create virtualenv if missing
+  if [ ! -d "$root/backend/venv" ]; then
+    echo "Virtualenv not found. Creating venv..."
+    python3 -m venv "$root/backend/venv" || exit 1
+    "$root/backend/venv/bin/python" -m pip install --upgrade pip setuptools wheel || exit 1
+    echo "Installing required Python packages into venv..."
+    "$root/backend/venv/bin/python" -m pip install -r "$root/backend/requirements.txt" || exit 1
+    echo "Python packages installed in venv."
+    return 0
+  fi
+
+  # If venv exists, check for broken/missing packages and install if needed
+  if ! "$root/backend/venv/bin/python" -m pip check -r "$root/backend/requirements.txt" >/dev/null 2>&1; then
+    echo "Some required Python packages are missing or have version conflicts. Installing/repairing in venv..."
+    "$root/backend/venv/bin/python" -m pip install -r "$root/backend/requirements.txt" || exit 1
   else
-    echo " Python package $1 is installed."
+    echo "All required Python packages are installed in venv."
+  fi
+}
+
+check_installed_npm_packages() {
+  cd "$root/frontend" || exit 1
+  if npm ls --depth=0 >/dev/null 2>&1; then
+    echo "All required NPM packages are installed."
+  else
+    echo "Missing or mismatched packages detected. Running npm install..."
+    npm install || exit 1
   fi
 }
 
@@ -30,7 +53,8 @@ check_dependencies() {
   check_installed pytest
   check_installed tmux
   if [ $exit_code -eq 0 ]; then
-    check_installed_python_package django
+    check_installed_python_packages
+    check_installed_npm_packages
   fi
 }
 
@@ -86,16 +110,16 @@ tmux set -g mouse on
 # Split the tmux window into two panes.
 tmux split-window -h -t alfacpm
 # Start the backend and frontend services in tmux panes.
-tmux send-keys -t alfacpm:0.0 "echo 'Starting backend server...' && python3 ../backend/manage.py runserver 0.0.0.0:8000" Enter
-tmux send-keys -t alfacpm:0.1 "echo 'Starting frontend server...' && cd ../frontend && npm run dev -- --host 0.0.0.0" Enter
+tmux send-keys -t alfacpm:0.0 "echo 'Starting backend server...' && $root/backend/venv/bin/python $root/backend/manage.py runserver 0.0.0.0:8000" Enter
+tmux send-keys -t alfacpm:0.1 "echo 'Starting frontend server...' && cd $root/frontend && npm run dev -- --host 0.0.0.0" Enter
 tmux attach -t alfacpm
 
 # TODO: Uncomment the following lines and add option to run them as services.
 # # Start the Django backend server in tmux.
-# python3 ../backend/manage.py runserver 0.0.0.0:8000&
+# python3 $root/backend/manage.py runserver 0.0.0.0:8000&
 # # Start the Node.js frontend server in the background.
 # echo "Starting frontend service..."
-# npm --prefix ../frontend start&
+# npm --prefix $root/frontend start&
 
 # # if the script is run as run.sh, it will wait for all background processes to finish
 # # and then exit
