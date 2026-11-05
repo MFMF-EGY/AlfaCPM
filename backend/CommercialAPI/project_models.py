@@ -131,15 +131,22 @@ class Products_Quantities_Adjustments(models.Model):
     class Meta:
         managed = False
 
-class Debt_Accounts_Operations(models.Model):
+class Project_Debt_Accounts(models.Model):
+    Debt_Account_ID = models.AutoField(primary_key=True)
+    Creation_DateTime = models.DateTimeField(auto_now_add=True)
+    Person_Name = models.CharField(max_length=60)
+    National_ID = models.CharField(max_length=20, unique=True, null=True)
+    Phone_Number = models.CharField(max_length=15, blank=True)
+    Debt_Amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+class Debt_Accounts_Transactions(models.Model):
     Operation_ID = models.AutoField(primary_key=True)
-    Person_ID = models.ForeignKey('Debt_Accounts', on_delete=models.CASCADE)
+    Debt_Account_ID = models.ForeignKey('Project_Debt_Accounts', on_delete=models.CASCADE)
     DateTime = models.DateTimeField(auto_now_add=True)
-    Operation_Type = models.CharField(max_length=50)  # e.g., "Credit" or "Debit"
+    Transaction_Type = models.CharField(max_length=50)  # e.g., "Payment", "Selling Invoice", "Purchase Invoice", "Refund Invoice"
     Related_Document_ID = models.IntegerField(null=True)
-    Required_Amount = models.DecimalField(max_digits=10, decimal_places=2)
+    Additional_Debt = models.DecimalField(max_digits=10, decimal_places=2)
     Paid = models.DecimalField(max_digits=10, decimal_places=2)
-    Remaining_Amount = models.DecimalField(max_digits=10, decimal_places=2)
     Debt_Balance = models.DecimalField(max_digits=10, decimal_places=2)
     Note = models.TextField(blank=True)
 
