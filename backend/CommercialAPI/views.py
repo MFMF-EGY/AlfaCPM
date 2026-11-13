@@ -1,8 +1,9 @@
 from django.shortcuts import render
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.db import connections
 from django.conf import settings
 from django.db.models import Max, Q, F
+from rest_framework.views import APIView
 from datetime import datetime
 from decimal import Decimal
 from CommercialAPI.models import Projects_Table
@@ -21,39 +22,43 @@ TRANSITION_DOCUMENT_LENGTH = 12
 MainDBCursor = connections["default"].cursor()
 ProjectsDBsConnectors = {}
 
+
 def SetupProjectsDBsConnectors():
     try:
-        ProjectsIDs = list(Projects_Table.objects.all().values_list("Project_ID", flat=True))
+        ProjectsIDs = list(
+            Projects_Table.objects.all().values_list("Project_ID", flat=True)
+        )
     except:
         return
     for ProjectID in ProjectsIDs:
         connections.databases[f"Project{ProjectID}"] = {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': f"Project{ProjectID}",
-            'HOST': 'localhost',
-            'PORT': '3306',
-            'USER': 'alfacpm',
-            'PASSWORD': '000600',
-            'OPTIONS': {
-                'charset': 'utf8mb4'
-            },
-            'AUTOCOMMIT': False,
-            'TIME_ZONE': settings.TIME_ZONE,
-            'CONN_HEALTH_CHECKS': False,
-            'CONN_MAX_AGE': 0,
-            'ATOMIC_REQUESTS': False,
-            'TEST': {
-                'NAME': f"Project{ProjectID}",
-                'MIRROR': None,
-                'CHARSET': None,
-                'COLLATION': None,
-                'MIGRATE': False,
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": f"Project{ProjectID}",
+            "HOST": "localhost",
+            "PORT": "3306",
+            "USER": "alfacpm",
+            "PASSWORD": "000600",
+            "OPTIONS": {"charset": "utf8mb4"},
+            "AUTOCOMMIT": False,
+            "TIME_ZONE": settings.TIME_ZONE,
+            "CONN_HEALTH_CHECKS": False,
+            "CONN_MAX_AGE": 0,
+            "ATOMIC_REQUESTS": False,
+            "TEST": {
+                "NAME": f"Project{ProjectID}",
+                "MIRROR": None,
+                "CHARSET": None,
+                "COLLATION": None,
+                "MIGRATE": False,
             },
         }
         ProjectsDBsConnectors[ProjectID] = 1
 
+
 SetupProjectsDBsConnectors()
 GeneratedSql = ""
+
+
 class ErrorCodes:
     InvalidDataType = 1
     MissingVariables = 2
@@ -82,6 +87,7 @@ def isnumberstr(value):
     except:
         return False
 
+
 def isintstr(value):
     try:
         int(value)
@@ -92,72 +98,73 @@ def isintstr(value):
 
 class ProcessRequest:
     @staticmethod
-    def CreateProject(RequestList, user, Test = False):
-        ProjectName, ProjectDescription = RequestList["ProjectName"], RequestList["ProjectDescription"]
+    def CreateProject(RequestList, user, Test=False):
+        ProjectName, ProjectDescription = (
+            RequestList["ProjectName"],
+            RequestList["ProjectDescription"],
+        )
         if len(ProjectName) == 0:
-            return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ProjectName"}
+            return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "ProjectName"}
         # This name is used for testing
         if ProjectName == "foo" and not Test:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"ProjectName"}
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "ProjectName"}
         # Check if project has unique name
         if Projects_Table.objects.filter(Project_Name=ProjectName).exists():
-            return {"StatusCode":ErrorCodes.RedundantValue,"Variable":"ProjectName"}
+            return {"StatusCode": ErrorCodes.RedundantValue, "Variable": "ProjectName"}
 
         new_project = Projects_Table(
-            Project_Name = ProjectName,
-            Project_Description = ProjectDescription,
-            Project_Owner = user
+            Project_Name=ProjectName,
+            Project_Description=ProjectDescription,
+            Project_Owner=user,
         )
         new_project.save()
         ProjectID = new_project.Project_ID
         MainDBCursor.execute(f"CREATE DATABASE Project{ProjectID};")
 
         connections.databases[f"Project{ProjectID}"] = {
-            'ENGINE': 'django.db.backends.mysql',
-            'NAME': f"Project{ProjectID}",
-            'HOST': 'localhost',
-            'PORT': '3306',
-            'USER': 'alfacpm',
-            'PASSWORD': '000600',
-            'OPTIONS': {
-                'charset': 'utf8mb4'
-            },
-            'AUTOCOMMIT': False,
-            'TIME_ZONE': settings.TIME_ZONE,
-            'CONN_HEALTH_CHECKS': False,
-            'CONN_MAX_AGE': 0,
-            'ATOMIC_REQUESTS': False,
-            'TEST': {
-                'NAME': f"Project{ProjectID}",
-                'MIRROR': None,
-                'CHARSET': None,
-                'COLLATION': None,
-                'MIGRATE': False,
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": f"Project{ProjectID}",
+            "HOST": "localhost",
+            "PORT": "3306",
+            "USER": "alfacpm",
+            "PASSWORD": "000600",
+            "OPTIONS": {"charset": "utf8mb4"},
+            "AUTOCOMMIT": False,
+            "TIME_ZONE": settings.TIME_ZONE,
+            "CONN_HEALTH_CHECKS": False,
+            "CONN_MAX_AGE": 0,
+            "ATOMIC_REQUESTS": False,
+            "TEST": {
+                "NAME": f"Project{ProjectID}",
+                "MIRROR": None,
+                "CHARSET": None,
+                "COLLATION": None,
+                "MIGRATE": False,
             },
         }
         NewDBCursor = connections[f"Project{ProjectID}"].cursor()
         with connections[f"Project{ProjectID}"].schema_editor() as schema_editor:
             for model_name in dir(project_db_structure):
                 model = getattr(project_db_structure, model_name)
-                if hasattr(model, '_meta'):
+                if hasattr(model, "_meta"):
                     schema_editor.create_model(model)
             for model_name in dir(hr_models):
                 model = getattr(hr_models, model_name)
-                if hasattr(model, '_meta'):
+                if hasattr(model, "_meta"):
                     schema_editor.create_model(model)
         connections[f"Project{ProjectID}"].commit()
         NewDBCursor.close()
-        
+
         MainDBCursor.execute("USE MainDB;")
         ProjectsDBsConnectors[ProjectID] = 1
         if Test:
             return ProjectID
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
     def GetProjects():
         projects = Projects_Table.objects.all()
-        return {"StatusCode":0,"Data":list(projects.values())}
+        return {"StatusCode": 0, "Data": list(projects.values())}
 
     @staticmethod
     def CreateAccount(DBName, RequestList):
@@ -165,23 +172,34 @@ class ProcessRequest:
         new_debt_account = Debt_Accounts(Person_Name=PersonName, Debt_Amount=0)
         new_debt_account.save(using=DBName)
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
-    def AddStore(DBName , RequestList):
+    def AddStore(DBName, RequestList):
         StoreName, StoreAddress = RequestList["StoreName"], RequestList["StoreAddress"]
-        ProductIDs = list(Products_Table.objects.using(DBName).all().values("Product_ID"))
+        ProductIDs = list(
+            Products_Table.objects.using(DBName).all().values("Product_ID")
+        )
         new_store = Stores_Table(Store_Name=StoreName, Store_Address=StoreAddress)
         new_store.save(using=DBName)
         for ProductID in ProductIDs:
-            new_product_quantity = Product_Quantity_Table(Store_ID=new_store, Product_ID=Products_Table.objects.using(DBName).get(Product_ID=ProductID["Product_ID"]), Quantity=0)
+            new_product_quantity = Product_Quantity_Table(
+                Store_ID=new_store,
+                Product_ID=Products_Table.objects.using(DBName).get(
+                    Product_ID=ProductID["Product_ID"]
+                ),
+                Quantity=0,
+            )
             new_product_quantity.save(using=DBName)
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
     def GetStores(DBName):
-        return {"StatusCode":0,"Data":list(Stores_Table.objects.using(DBName).all().values())}
+        return {
+            "StatusCode": 0,
+            "Data": list(Stores_Table.objects.using(DBName).all().values()),
+        }
 
     @staticmethod
     def AddProduct(DBName, RequestList):
@@ -209,15 +227,26 @@ class ProcessRequest:
             RequestList["PartialSmallQuantityAllowed"],
         )
         # Check if Product already exist with the same trademark and same manufacture country.
-        if Products_Table.objects.using(DBName).filter(Product_Name=ProductName, Trademark=Trademark, Manufacture_Country=ManufactureCountry).exists():
-            return {"StatusCode":ErrorCodes.RedundantValue,"Data":""}
+        if (
+            Products_Table.objects.using(DBName)
+            .filter(
+                Product_Name=ProductName,
+                Trademark=Trademark,
+                Manufacture_Country=ManufactureCountry,
+            )
+            .exists()
+        ):
+            return {"StatusCode": ErrorCodes.RedundantValue, "Data": ""}
         StoresIDs = list(Stores_Table.objects.using(DBName).all())
         if RequestList.get("ProductOrder") is None:
             new_product = Products_Table(
                 Product_Order=(
                     Products_Table.objects.using(DBName).aggregate(
                         Max("Product_Order")
-                    )["Product_Order__max"] + 1 if Products_Table.objects.using(DBName).exists() else 1
+                    )["Product_Order__max"]
+                    + 1
+                    if Products_Table.objects.using(DBName).exists()
+                    else 1
                 ),
                 Product_Name=ProductName,
                 Trademark=Trademark,
@@ -233,7 +262,9 @@ class ProcessRequest:
             new_product.save(using=DBName)
         else:
             Order = RequestList["ProductOrder"]
-            Products_Table.objects.using(DBName).filter(Product_Order__gte=Order).update(Product_Order=F('Product_Order') + 1)
+            Products_Table.objects.using(DBName).filter(
+                Product_Order__gte=Order
+            ).update(Product_Order=F("Product_Order") + 1)
             new_product = Products_Table(
                 Product_Order=Order,
                 Product_Name=ProductName,
@@ -250,13 +281,11 @@ class ProcessRequest:
             new_product.save(using=DBName)
         for StoreID in StoresIDs:
             new_product_quantity = Product_Quantity_Table(
-                Store_ID = StoreID,
-                Product_ID=new_product,
-                Quantity=0
+                Store_ID=StoreID, Product_ID=new_product, Quantity=0
             )
             new_product_quantity.save(using=DBName)
         connections[DBName].commit()
-        return {"StatusCode": 0,"Data": "OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
     def EditProductInfo(DBName, RequestList):
@@ -286,34 +315,42 @@ class ProcessRequest:
             RequestList["PartialSmallQuantityAllowed"],
         )
 
-        Products_Table.objects.using(DBName).filter(Product_ID = ProductID).update(
-            Product_Name = ProductName,
-            Trademark = Trademark,
-            Manufacture_Country = ManufactureCountry,
-            Purchase_Price = PurchasePrice,
-            Wholesale_Price = WholesalePrice,
-            Retail_Price = RetailPrice,
-            Large_Quantity_Unit = LargeQuantityUnit,
-            Small_Quantity_Unit = SmallQuantityUnit,
-            Conversion_Rate = ConversionRate,
-            Partial_Small_Quantity_Allowed = PartialSmallQuantityAllowed
+        Products_Table.objects.using(DBName).filter(Product_ID=ProductID).update(
+            Product_Name=ProductName,
+            Trademark=Trademark,
+            Manufacture_Country=ManufactureCountry,
+            Purchase_Price=PurchasePrice,
+            Wholesale_Price=WholesalePrice,
+            Retail_Price=RetailPrice,
+            Large_Quantity_Unit=LargeQuantityUnit,
+            Small_Quantity_Unit=SmallQuantityUnit,
+            Conversion_Rate=ConversionRate,
+            Partial_Small_Quantity_Allowed=PartialSmallQuantityAllowed,
         )
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
     def GetProductInfo(DBName, RequestList):
-        ProductID = RequestList['ProductID']
+        ProductID = RequestList["ProductID"]
         product = Products_Table.objects.using(DBName).get(Product_ID=ProductID)
-        product_quantity_table = Product_Quantity_Table.objects.using(DBName).filter(Product_ID=ProductID).values('Store_ID', 'Quantity')
-        ProductInfo = {**product.__dict__, 'Quantities': list(product_quantity_table)}
-        del ProductInfo['_state']
-        return {"StatusCode": 0,"Data": ProductInfo}
+        product_quantity_table = (
+            Product_Quantity_Table.objects.using(DBName)
+            .filter(Product_ID=ProductID)
+            .values("Store_ID", "Quantity")
+        )
+        ProductInfo = {**product.__dict__, "Quantities": list(product_quantity_table)}
+        del ProductInfo["_state"]
+        return {"StatusCode": 0, "Data": ProductInfo}
 
     @staticmethod
     def GetProductsQuantities(DBName, ProductsIDs, store):
-        ProductsQuantities = Product_Quantity_Table.objects.using(DBName).filter(Store_ID=store, Product_ID__in=ProductsIDs).values('Product_ID', 'Quantity')
-        return {"StatusCode":0,"Data":list(ProductsQuantities)}
+        ProductsQuantities = (
+            Product_Quantity_Table.objects.using(DBName)
+            .filter(Store_ID=store, Product_ID__in=ProductsIDs)
+            .values("Product_ID", "Quantity")
+        )
+        return {"StatusCode": 0, "Data": list(ProductsQuantities)}
 
     @staticmethod
     def Sell(DBName, RequestList, Items, TotalPrice, store):
@@ -321,102 +358,139 @@ class ProcessRequest:
         InsufficentQuantityProducts = []
         # For every item check if product has sufficient quantity
         for Item in Items:
-            product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=store, Product_ID=Item["ProductID"])
+            product_quantity = Product_Quantity_Table.objects.using(DBName).get(
+                Store_ID=store, Product_ID=Item["ProductID"]
+            )
             if product_quantity.Quantity < Item["TotalQuantity"]:
                 InsufficentQuantityProducts.append(Item["ProductID"])
         if InsufficentQuantityProducts:
-            return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductsIDs":InsufficentQuantityProducts}
+            return {
+                "StatusCode": ErrorCodes.InsufficientQuantity,
+                "ProductsIDs": InsufficentQuantityProducts,
+            }
         selling_invoice = Selling_Invoices(
-            Store_ID = store,
-            Client_Name = ClientName,
-            Total_Price = TotalPrice,
-            Paid = Paid,
-            Transferred_To_Debt_Account = TotalPrice - Paid
+            Store_ID=store,
+            Client_Name=ClientName,
+            Total_Price=TotalPrice,
+            Paid=Paid,
+            Transferred_To_Debt_Account=TotalPrice - Paid,
         )
         selling_invoice.save(using=DBName)
 
         for Item in Items:
-            product = Products_Table.objects.using(DBName).get(Product_ID=Item["ProductID"])
+            product = Products_Table.objects.using(DBName).get(
+                Product_ID=Item["ProductID"]
+            )
             selling_item = Selling_Items(
-                Invoice_ID = selling_invoice,
-                Product_ID = product,
-                Quantity = Item["TotalQuantity"],
-                Convertion_Rate = product.Conversion_Rate,
-                Purchase_Price = product.Purchase_Price,
-                Unit_Price = Item["UnitPrice"]
+                Invoice_ID=selling_invoice,
+                Product_ID=product,
+                Quantity=Item["TotalQuantity"],
+                Convertion_Rate=product.Conversion_Rate,
+                Purchase_Price=product.Purchase_Price,
+                Unit_Price=Item["UnitPrice"],
             )
             selling_item.save(using=DBName)
-            RowsAffected = Product_Quantity_Table.objects.using(DBName).filter(Store_ID=store, Product_ID=Item["ProductID"]).update(
-                Quantity = F('Quantity') - Item["TotalQuantity"]
+            RowsAffected = (
+                Product_Quantity_Table.objects.using(DBName)
+                .filter(Store_ID=store, Product_ID=Item["ProductID"])
+                .update(Quantity=F("Quantity") - Item["TotalQuantity"])
             )
             if RowsAffected == 0:
-                return {"StatusCode": ErrorCodes.DBStructureError, "Table": "Product_Quantity_Table"}
+                return {
+                    "StatusCode": ErrorCodes.DBStructureError,
+                    "Table": "Product_Quantity_Table",
+                }
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
     def Purchase(DBName, RequestList, Items, TotalPrice, store):
         SellerName, Paid = RequestList["SellerName"], RequestList["Paid"]
         purchase_invoice = Purchase_Invoices(
-            Store_ID = store,
-            Seller_Name = SellerName,
-            Total_Price = TotalPrice,
-            Paid = Paid,
-            Deducted_From_Debt_Account = TotalPrice - Paid
+            Store_ID=store,
+            Seller_Name=SellerName,
+            Total_Price=TotalPrice,
+            Paid=Paid,
+            Deducted_From_Debt_Account=TotalPrice - Paid,
         )
         purchase_invoice.save(using=DBName)
         for Item in Items:
-            product = Products_Table.objects.using(DBName).get(Product_ID=Item["ProductID"])
+            product = Products_Table.objects.using(DBName).get(
+                Product_ID=Item["ProductID"]
+            )
             purchase_item = Purchase_Items(
-                Invoice_ID = purchase_invoice,
-                Product_ID = product,
-                Quantity = Item["TotalQuantity"],
-                Convertion_Rate = product.Conversion_Rate,
-                Unit_Price = Item["UnitPrice"]
+                Invoice_ID=purchase_invoice,
+                Product_ID=product,
+                Quantity=Item["TotalQuantity"],
+                Convertion_Rate=product.Conversion_Rate,
+                Unit_Price=Item["UnitPrice"],
             )
             purchase_item.save(using=DBName)
-            RowsAffected = Product_Quantity_Table.objects.using(DBName).filter(Store_ID=store, Product_ID=Item["ProductID"]).update(
-                Quantity = F('Quantity') + Item["TotalQuantity"]
+            RowsAffected = (
+                Product_Quantity_Table.objects.using(DBName)
+                .filter(Store_ID=store, Product_ID=Item["ProductID"])
+                .update(Quantity=F("Quantity") + Item["TotalQuantity"])
             )
             if RowsAffected == 0:
-                return {"StatusCode": ErrorCodes.DBStructureError, "Table": "Product_Quantity_Table"}
+                return {
+                    "StatusCode": ErrorCodes.DBStructureError,
+                    "Table": "Product_Quantity_Table",
+                }
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
-    def EditSellingInvoice(DBName, selling_invoice: Selling_Invoices, RequestList, Items, TotalPrice):
+    def EditSellingInvoice(
+        DBName, selling_invoice: Selling_Invoices, RequestList, Items, TotalPrice
+    ):
         ClientName, Paid = RequestList["ClientName"], RequestList["Paid"]
         # Return invoice items quantities to the store and delete those items.
-        selling_invoice_items = Selling_Items.objects.using(DBName).filter(Invoice_ID=selling_invoice.Invoice_ID)
+        selling_invoice_items = Selling_Items.objects.using(DBName).filter(
+            Invoice_ID=selling_invoice.Invoice_ID
+        )
         for Item in selling_invoice_items:
-            RowsAffected = Product_Quantity_Table.objects.using(DBName).filter(Store_ID=selling_invoice.Store_ID, Product_ID=Item.Product_ID).update(
-                Quantity = F('Quantity') + Item.Quantity
+            RowsAffected = (
+                Product_Quantity_Table.objects.using(DBName)
+                .filter(Store_ID=selling_invoice.Store_ID, Product_ID=Item.Product_ID)
+                .update(Quantity=F("Quantity") + Item.Quantity)
             )
             if RowsAffected == 0:
-                return {"StatusCode": ErrorCodes.DBStructureError, "Table": "Product_Quantity_Table"}
+                return {
+                    "StatusCode": ErrorCodes.DBStructureError,
+                    "Table": "Product_Quantity_Table",
+                }
         selling_invoice_items.delete()
         # Check if store has sufficient quantity for every ordered product after editing
         # then deduct the new quantities and insert the new items to the invoice
         InsufficientQuantityProducts = []
         for Item in Items:
-            available_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=selling_invoice.Store_ID, Product_ID=Item["ProductID"])
+            available_quantity = Product_Quantity_Table.objects.using(DBName).get(
+                Store_ID=selling_invoice.Store_ID, Product_ID=Item["ProductID"]
+            )
             if available_quantity.Quantity < Item["TotalQuantity"]:
                 InsufficientQuantityProducts.append(Item["ProductID"])
                 continue
-            available_quantity.Quantity = Decimal(available_quantity.Quantity) - Decimal(Item["TotalQuantity"])
+            available_quantity.Quantity = Decimal(
+                available_quantity.Quantity
+            ) - Decimal(Item["TotalQuantity"])
             available_quantity.save(using=DBName)
-            product = Products_Table.objects.using(DBName).get(Product_ID=Item["ProductID"])
+            product = Products_Table.objects.using(DBName).get(
+                Product_ID=Item["ProductID"]
+            )
             new_item = Selling_Items(
-                Invoice_ID = selling_invoice,
-                Product_ID = product,
-                Purchase_Price = product.Purchase_Price,
-                Quantity = Item["TotalQuantity"],
-                Convertion_Rate = product.Conversion_Rate,
-                Unit_Price = Item["UnitPrice"]
+                Invoice_ID=selling_invoice,
+                Product_ID=product,
+                Purchase_Price=product.Purchase_Price,
+                Quantity=Item["TotalQuantity"],
+                Convertion_Rate=product.Conversion_Rate,
+                Unit_Price=Item["UnitPrice"],
             )
             new_item.save(using=DBName)
         if InsufficientQuantityProducts:
-            return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductsIDs":InsufficientQuantityProducts} 
+            return {
+                "StatusCode": ErrorCodes.InsufficientQuantity,
+                "ProductsIDs": InsufficientQuantityProducts,
+            }
         # Edit invoice info
         selling_invoice.Client_Name = ClientName
         selling_invoice.Total_Price = TotalPrice
@@ -424,47 +498,72 @@ class ProcessRequest:
         selling_invoice.Transferred_To_Debt_Account = TotalPrice - Paid
         selling_invoice.save(using=DBName)
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
-    def EditPurchaseInvoice(DBName, purchase_invoice: Purchase_Invoices, RequestList, Items, TotalPrice):
+    def EditPurchaseInvoice(
+        DBName, purchase_invoice: Purchase_Invoices, RequestList, Items, TotalPrice
+    ):
         SellerName, Paid = RequestList["SellerName"], RequestList["Paid"]
         # Subtract invoice items quantities to the store and delete those items.
-        purchase_invoice_items = list(Purchase_Items.objects.using(DBName).filter(Invoice_ID=purchase_invoice.Invoice_ID))
+        purchase_invoice_items = list(
+            Purchase_Items.objects.using(DBName).filter(
+                Invoice_ID=purchase_invoice.Invoice_ID
+            )
+        )
         for item in purchase_invoice_items:
-            RowsAffected = Product_Quantity_Table.objects.using(DBName).filter(Store_ID=purchase_invoice.Store_ID, Product_ID=item.Product_ID).update(
-                Quantity = F('Quantity') - item.Quantity
+            RowsAffected = (
+                Product_Quantity_Table.objects.using(DBName)
+                .filter(Store_ID=purchase_invoice.Store_ID, Product_ID=item.Product_ID)
+                .update(Quantity=F("Quantity") - item.Quantity)
             )
             if RowsAffected == 0:
-                return {"StatusCode": ErrorCodes.DBStructureError, "Table": "Product_Quantity_Table"}
+                return {
+                    "StatusCode": ErrorCodes.DBStructureError,
+                    "Table": "Product_Quantity_Table",
+                }
 
         # Add quantities and insert the new items to the invoice
         for Item in Items:
-            RowsAffected = Product_Quantity_Table.objects.using(DBName).filter(Store_ID=purchase_invoice.Store_ID, Product_ID=Item["ProductID"]).update(
-                Quantity = F('Quantity') + Item["TotalQuantity"]
+            RowsAffected = (
+                Product_Quantity_Table.objects.using(DBName)
+                .filter(
+                    Store_ID=purchase_invoice.Store_ID, Product_ID=Item["ProductID"]
+                )
+                .update(Quantity=F("Quantity") + Item["TotalQuantity"])
             )
             if RowsAffected == 0:
-                return {"StatusCode": ErrorCodes.DBStructureError, "Table": "Product_Quantity_Table"}
-            product = Products_Table.objects.using(DBName).get(Product_ID=Item["ProductID"])
+                return {
+                    "StatusCode": ErrorCodes.DBStructureError,
+                    "Table": "Product_Quantity_Table",
+                }
+            product = Products_Table.objects.using(DBName).get(
+                Product_ID=Item["ProductID"]
+            )
             new_item = Purchase_Items(
                 Invoice_ID=purchase_invoice,
                 Product_ID=product,
                 Quantity=Item["TotalQuantity"],
                 Convertion_Rate=product.Conversion_Rate,
-                Unit_Price=Item["UnitPrice"]
+                Unit_Price=Item["UnitPrice"],
             )
             new_item.save(using=DBName)
         # Check if any product has negative quantity after editing
         InsufficientQuantityProducts = []
         for Item in purchase_invoice_items:
-            existing_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=purchase_invoice.Store_ID, Product_ID=Item.Product_ID)
+            existing_quantity = Product_Quantity_Table.objects.using(DBName).get(
+                Store_ID=purchase_invoice.Store_ID, Product_ID=Item.Product_ID
+            )
             if existing_quantity.Quantity < 0:
                 InsufficientQuantityProducts.append(Item.Product_ID)
                 continue
             # Delete old item
             Item.delete(using=DBName)
         if InsufficientQuantityProducts:
-            return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductsIDs":InsufficientQuantityProducts}
+            return {
+                "StatusCode": ErrorCodes.InsufficientQuantity,
+                "ProductsIDs": InsufficientQuantityProducts,
+            }
         # Edit invoice info
         purchase_invoice.Seller_Name = SellerName
         purchase_invoice.Total_Price = TotalPrice
@@ -472,80 +571,131 @@ class ProcessRequest:
         purchase_invoice.Deducted_From_Debt_Account = TotalPrice - Paid
         purchase_invoice.save(using=DBName)
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
-    def EditTransitionDocument(DBName, transition_document: Transition_Documents, destination_store, Items):
+    def EditTransitionDocument(
+        DBName, transition_document: Transition_Documents, destination_store, Items
+    ):
         # Return quantities to source store and deduct from destination store
-        old_transition_document_items = list(Transition_Items.objects.using(DBName).filter(Document_ID=transition_document.Document_ID))
+        old_transition_document_items = list(
+            Transition_Items.objects.using(DBName).filter(
+                Document_ID=transition_document.Document_ID
+            )
+        )
         for Item in old_transition_document_items:
-            RowsAffected = Product_Quantity_Table.objects.using(DBName).filter(
-                Product_ID = Item.Product_ID,
-                Store_ID = transition_document.Destination_Store_ID
-            ).update(Quantity=F('Quantity') - Item.Quantity)
+            RowsAffected = (
+                Product_Quantity_Table.objects.using(DBName)
+                .filter(
+                    Product_ID=Item.Product_ID,
+                    Store_ID=transition_document.Destination_Store_ID,
+                )
+                .update(Quantity=F("Quantity") - Item.Quantity)
+            )
             if RowsAffected == 0:
-                return {"StatusCode": ErrorCodes.DBStructureError, "Table": "Product_Quantity_Table"}
-            RowsAffected = Product_Quantity_Table.objects.using(DBName).filter(
-                Product_ID=Item.Product_ID,
-                Store_ID=transition_document.Source_Store_ID
-            ).update(Quantity=F('Quantity') + Item.Quantity)
+                return {
+                    "StatusCode": ErrorCodes.DBStructureError,
+                    "Table": "Product_Quantity_Table",
+                }
+            RowsAffected = (
+                Product_Quantity_Table.objects.using(DBName)
+                .filter(
+                    Product_ID=Item.Product_ID,
+                    Store_ID=transition_document.Source_Store_ID,
+                )
+                .update(Quantity=F("Quantity") + Item.Quantity)
+            )
             if RowsAffected == 0:
-                return {"StatusCode": ErrorCodes.DBStructureError, "Table": "Product_Quantity_Table"}
+                return {
+                    "StatusCode": ErrorCodes.DBStructureError,
+                    "Table": "Product_Quantity_Table",
+                }
         InsufficentDestinationQuantityProducts = []
         # Transit quantities according to new orders, check if destination store quantity is positive and insert new doucment items
         for Item in Items:
-            product = Products_Table.objects.using(DBName).get(Product_ID=Item["ProductID"])
+            product = Products_Table.objects.using(DBName).get(
+                Product_ID=Item["ProductID"]
+            )
             # Add to destination store quantity and check if quantity is positive.
-            destination_store_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=product, Store_ID=destination_store)
-            destination_store_quantity.Quantity = Decimal(destination_store_quantity.Quantity) + Decimal(Item["Quantity"])
+            destination_store_quantity = Product_Quantity_Table.objects.using(
+                DBName
+            ).get(Product_ID=product, Store_ID=destination_store)
+            destination_store_quantity.Quantity = Decimal(
+                destination_store_quantity.Quantity
+            ) + Decimal(Item["Quantity"])
             if destination_store_quantity.Quantity < 0:
                 InsufficentDestinationQuantityProducts.append(Item["ProductID"])
                 continue
             destination_store_quantity.save(using=DBName)
             # Subtract from source store quantity.
-            RowsAffected = Product_Quantity_Table.objects.using(DBName).filter(
-                Product_ID = product,
-                Store_ID = transition_document.Source_Store_ID
-            ).update(Quantity=F('Quantity') - Item["TotalQuantity"])
+            RowsAffected = (
+                Product_Quantity_Table.objects.using(DBName)
+                .filter(
+                    Product_ID=product, Store_ID=transition_document.Source_Store_ID
+                )
+                .update(Quantity=F("Quantity") - Item["TotalQuantity"])
+            )
             if RowsAffected == 0:
-                return {"StatusCode": ErrorCodes.DBStructureError, "Table": "Product_Quantity_Table"}
+                return {
+                    "StatusCode": ErrorCodes.DBStructureError,
+                    "Table": "Product_Quantity_Table",
+                }
             new_item = Transition_Items(
-                Document_ID = transition_document,
-                Product_ID = product,
-                Quantity = Item["TotalQuantity"]
+                Document_ID=transition_document,
+                Product_ID=product,
+                Quantity=Item["TotalQuantity"],
             )
             new_item.save(using=DBName)
         if InsufficentDestinationQuantityProducts:
-            return {"StatusCode":ErrorCodes.InsufficientQuantity,"Store":"Destination","ProductsIDs":InsufficentDestinationQuantityProducts}
+            return {
+                "StatusCode": ErrorCodes.InsufficientQuantity,
+                "Store": "Destination",
+                "ProductsIDs": InsufficentDestinationQuantityProducts,
+            }
         # Check if source store has negative quantity for any product
         InsufficientSourceQuantityProducts = []
         for Item in old_transition_document_items:
-            source_store_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=Item.Product_ID, Store_ID=transition_document.Source_Store_ID)
+            source_store_quantity = Product_Quantity_Table.objects.using(DBName).get(
+                Product_ID=Item.Product_ID, Store_ID=transition_document.Source_Store_ID
+            )
             if source_store_quantity.Quantity < 0:
                 InsufficientSourceQuantityProducts.append(Item.Product_ID)
                 continue
             Item.delete(using=DBName)
         if InsufficientSourceQuantityProducts:
-            return {"StatusCode":ErrorCodes.InsufficientQuantity,"Store":"Source","ProductsIDs":InsufficientSourceQuantityProducts}
+            return {
+                "StatusCode": ErrorCodes.InsufficientQuantity,
+                "Store": "Source",
+                "ProductsIDs": InsufficientSourceQuantityProducts,
+            }
         # Edit document info
         transition_document.Destination_Store_ID = destination_store
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
     def DeletePurchaseInvoice(DBName, purchase_invoice: Purchase_Invoices):
-        invoice_items = Purchase_Items.objects.using(DBName).filter(Invoice_ID=purchase_invoice.Invoice_ID)
+        invoice_items = Purchase_Items.objects.using(DBName).filter(
+            Invoice_ID=purchase_invoice.Invoice_ID
+        )
         for Item in invoice_items:
             ItemID, ItemQuantity = Item.Product_ID, Item.Quantity
-            existing_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=ItemID, Store_ID=purchase_invoice.Store_ID)
+            existing_quantity = Product_Quantity_Table.objects.using(DBName).get(
+                Product_ID=ItemID, Store_ID=purchase_invoice.Store_ID
+            )
             if existing_quantity.Quantity < ItemQuantity:
-                return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductID":ItemID}
-            existing_quantity.Quantity = Decimal(existing_quantity.Quantity) - Decimal(ItemQuantity)
+                return {
+                    "StatusCode": ErrorCodes.InsufficientQuantity,
+                    "ProductID": ItemID,
+                }
+            existing_quantity.Quantity = Decimal(existing_quantity.Quantity) - Decimal(
+                ItemQuantity
+            )
             existing_quantity.save(using=DBName)
             Item.delete(using=DBName)
         purchase_invoice.delete(using=DBName)
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
     def DeleteSellingInvoice(DBName, selling_invoice: Selling_Invoices):
@@ -553,57 +703,90 @@ class ProcessRequest:
         selling_items = Selling_Items.objects.using(DBName).filter(Invoice_ID=InvoiceID)
         for Item in selling_items:
             Product_Quantity_Table.objects.using(DBName).filter(
-                Product_ID = Item.Product_ID,
-                Store_ID = selling_invoice.Store_ID
-            ).update(Quantity=F('Quantity') + Item.Quantity)
+                Product_ID=Item.Product_ID, Store_ID=selling_invoice.Store_ID
+            ).update(Quantity=F("Quantity") + Item.Quantity)
             Item.delete(using=DBName)
         selling_invoice.delete(using=DBName)
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
     def DeleteTransitionDocument(DBName, transition_document: Transition_Documents):
-        SourceStoreID, DestinationStoreID = transition_document.Source_Store_ID, transition_document.Destination_Store_ID
-        transited_items = Transition_Items.objects.using(DBName).filter(Document_ID=transition_document.Document_ID) 
+        SourceStoreID, DestinationStoreID = (
+            transition_document.Source_Store_ID,
+            transition_document.Destination_Store_ID,
+        )
+        transited_items = Transition_Items.objects.using(DBName).filter(
+            Document_ID=transition_document.Document_ID
+        )
         for Item in transited_items:
-            destination_store_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=Item.Product_ID, Store_ID=DestinationStoreID)
+            destination_store_quantity = Product_Quantity_Table.objects.using(
+                DBName
+            ).get(Product_ID=Item.Product_ID, Store_ID=DestinationStoreID)
             if destination_store_quantity.Quantity < Item.Quantity:
-                return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductID":Item.Product_ID}
-            destination_store_quantity.Quantity = Decimal(destination_store_quantity.Quantity) - Decimal(Item.Quantity)
+                return {
+                    "StatusCode": ErrorCodes.InsufficientQuantity,
+                    "ProductID": Item.Product_ID,
+                }
+            destination_store_quantity.Quantity = Decimal(
+                destination_store_quantity.Quantity
+            ) - Decimal(Item.Quantity)
             destination_store_quantity.save(using=DBName)
-            RowsAffected = Product_Quantity_Table.objects.using(DBName).filter(
-                Product_ID = Item.Product_ID,
-                Store_ID = SourceStoreID
-            ).update(Quantity=F('Quantity') + Item.Quantity)
+            RowsAffected = (
+                Product_Quantity_Table.objects.using(DBName)
+                .filter(Product_ID=Item.Product_ID, Store_ID=SourceStoreID)
+                .update(Quantity=F("Quantity") + Item.Quantity)
+            )
             if RowsAffected == 0:
-                return {"StatusCode": ErrorCodes.DBStructureError, "Table": "Product_Quantity_Table"}
+                return {
+                    "StatusCode": ErrorCodes.DBStructureError,
+                    "Table": "Product_Quantity_Table",
+                }
             Item.delete(using=DBName)
         transition_document.delete(using=DBName)
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
-    def DeleteAdjustmentOperation(DBName, adjustment_operation: Products_Quantities_Adjustments):
-        StoreID, ProductID, OperationType, Quantity = adjustment_operation.Store_ID, adjustment_operation.Product_ID, adjustment_operation.Operation_Type, adjustment_operation.Quantity
+    def DeleteAdjustmentOperation(
+        DBName, adjustment_operation: Products_Quantities_Adjustments
+    ):
+        StoreID, ProductID, OperationType, Quantity = (
+            adjustment_operation.Store_ID,
+            adjustment_operation.Product_ID,
+            adjustment_operation.Operation_Type,
+            adjustment_operation.Quantity,
+        )
         if OperationType in ["MoreThanPurchaseInvoice", "Fixed", "Found"]:
-            product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=StoreID, Product_ID=ProductID)
+            product_quantity = Product_Quantity_Table.objects.using(DBName).get(
+                Store_ID=StoreID, Product_ID=ProductID
+            )
             if product_quantity.Quantity < Quantity:
-                return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductID":ProductID}
-            product_quantity.Quantity = Decimal(product_quantity.Quantity) - Decimal(Quantity)
+                return {
+                    "StatusCode": ErrorCodes.InsufficientQuantity,
+                    "ProductID": ProductID,
+                }
+            product_quantity.Quantity = Decimal(product_quantity.Quantity) - Decimal(
+                Quantity
+            )
             product_quantity.save(using=DBName)
         else:
             # product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=StoreID, Product_ID=ProductID)
             # product_quantity.Quantity = Decimal(product_quantity.Quantity) + Decimal(Quantity)
             # product_quantity.save(using=DBName)
-            RowsAffected = Product_Quantity_Table.objects.using(DBName).filter(
-                Store_ID = StoreID,
-                Product_ID = ProductID
-            ).update(Quantity=F('Quantity') + Quantity)
+            RowsAffected = (
+                Product_Quantity_Table.objects.using(DBName)
+                .filter(Store_ID=StoreID, Product_ID=ProductID)
+                .update(Quantity=F("Quantity") + Quantity)
+            )
             if RowsAffected == 0:
-                return {"StatusCode": ErrorCodes.DBStructureError, "Table": "Product_Quantity_Table"}
+                return {
+                    "StatusCode": ErrorCodes.DBStructureError,
+                    "Table": "Product_Quantity_Table",
+                }
         adjustment_operation.delete(using=DBName)
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
     def AddToAccount(RequestList):
@@ -611,66 +794,98 @@ class ProcessRequest:
         PersonID = RequestList["PersonID"]
         Description = RequestList["Description"]
         Amount = RequestList["Amount"]
-        Cursor.execute(f"SELECT Person_ID FROM Debt_Accounts WHERE Person_ID = {PersonID}")
+        Cursor.execute(
+            f"SELECT Person_ID FROM Debt_Accounts WHERE Person_ID = {PersonID}"
+        )
         if not Cursor.fetchone():
-            return {"StatusCode":ErrorCodes.UnregisteredPerson,"Data":""}
-        Cursor.execute(f"INSERT INTO Accounts_Operations('Person_ID','Description','Required') VALUES ('{PersonID}','{Description}','{Amount}')\n")
-        Cursor.execute(f"SET @Old_Balance = (SELECT Balance FROM Accounts WHERE Person_ID = {PersonID});\n")
-        Cursor.execute(f"UPDATE Accounts SET Balance = @Old_Balance+{Amount} WHERE Person_ID = {PersonID};\n")
+            return {"StatusCode": ErrorCodes.UnregisteredPerson, "Data": ""}
+        Cursor.execute(
+            f"INSERT INTO Accounts_Operations('Person_ID','Description','Required') VALUES ('{PersonID}','{Description}','{Amount}')\n"
+        )
+        Cursor.execute(
+            f"SET @Old_Balance = (SELECT Balance FROM Accounts WHERE Person_ID = {PersonID});\n"
+        )
+        Cursor.execute(
+            f"UPDATE Accounts SET Balance = @Old_Balance+{Amount} WHERE Person_ID = {PersonID};\n"
+        )
         ProjectDBConnector.commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
+
     @staticmethod
     def DeductFromAccount(RequestList):
         PersonID = RequestList["PersonID"]
         Description = RequestList["Description"]
         Amount = RequestList["Amount"]
-        Cursor.execute(f"SELECT Person_ID FROM Debt_Accounts WHERE Person_ID = {PersonID}")
-        if not Cursor.fetchone():
-            return {"StatusCode":ErrorCodes.UnregisteredPerson,"Data":""}
         Cursor.execute(
-            f"INSERT INTO Accounts_Operations('Person_ID','Description','Required') VALUES ('{PersonID}','{Description}','{Amount}')\n")
-        Cursor.execute(f"SET @Old_Balance = (SELECT Balance FROM Accounts WHERE Person_ID = {PersonID});\n")
-        Cursor.execute(f"UPDATE Accounts SET Balance = @Old_Balance-{Amount} WHERE Person_ID = {PersonID};\n")
+            f"SELECT Person_ID FROM Debt_Accounts WHERE Person_ID = {PersonID}"
+        )
+        if not Cursor.fetchone():
+            return {"StatusCode": ErrorCodes.UnregisteredPerson, "Data": ""}
+        Cursor.execute(
+            f"INSERT INTO Accounts_Operations('Person_ID','Description','Required') VALUES ('{PersonID}','{Description}','{Amount}')\n"
+        )
+        Cursor.execute(
+            f"SET @Old_Balance = (SELECT Balance FROM Accounts WHERE Person_ID = {PersonID});\n"
+        )
+        Cursor.execute(
+            f"UPDATE Accounts SET Balance = @Old_Balance-{Amount} WHERE Person_ID = {PersonID};\n"
+        )
         ProjectDBConnector.commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
     def Transit(DBName, Items, source_store, destination_store):
         InsufficientQuantityProducts = []
         for i in range(len(Items)):
-            Items[i]["ProductID"] = Products_Table.objects.using(DBName).get(Product_ID=Items[i]["ProductID"])
+            Items[i]["ProductID"] = Products_Table.objects.using(DBName).get(
+                Product_ID=Items[i]["ProductID"]
+            )
             Item = Items[i]
-            existing_quantity = Product_Quantity_Table.objects.using(DBName).get(Product_ID=Item['ProductID'], Store_ID=source_store)
-            if existing_quantity.Quantity < Item['TotalQuantity']:
-                InsufficientQuantityProducts.append(Item['ProductID'])
-                continue
-            RowsAffected = Product_Quantity_Table.objects.using(DBName).filter(
+            existing_quantity = Product_Quantity_Table.objects.using(DBName).get(
                 Product_ID=Item["ProductID"], Store_ID=source_store
-            ).update(Quantity=F("Quantity") - Item["TotalQuantity"])
+            )
+            if existing_quantity.Quantity < Item["TotalQuantity"]:
+                InsufficientQuantityProducts.append(Item["ProductID"])
+                continue
+            RowsAffected = (
+                Product_Quantity_Table.objects.using(DBName)
+                .filter(Product_ID=Item["ProductID"], Store_ID=source_store)
+                .update(Quantity=F("Quantity") - Item["TotalQuantity"])
+            )
             if RowsAffected == 0:
-                return {"StatusCode": ErrorCodes.DBStructureError, "Table": "Product_Quantity_Table"}
-            RowsAffected = Product_Quantity_Table.objects.using(DBName).filter(
-                Product_ID=Item["ProductID"], Store_ID=destination_store
-            ).update(Quantity=F("Quantity") + Item["TotalQuantity"])
+                return {
+                    "StatusCode": ErrorCodes.DBStructureError,
+                    "Table": "Product_Quantity_Table",
+                }
+            RowsAffected = (
+                Product_Quantity_Table.objects.using(DBName)
+                .filter(Product_ID=Item["ProductID"], Store_ID=destination_store)
+                .update(Quantity=F("Quantity") + Item["TotalQuantity"])
+            )
             if RowsAffected == 0:
-                return {"StatusCode": ErrorCodes.DBStructureError, "Table": "Product_Quantity_Table"}
+                return {
+                    "StatusCode": ErrorCodes.DBStructureError,
+                    "Table": "Product_Quantity_Table",
+                }
         if InsufficientQuantityProducts:
-            return {"StatusCode": ErrorCodes.InsufficientQuantity,"ProductsIDs": InsufficientQuantityProducts}
+            return {
+                "StatusCode": ErrorCodes.InsufficientQuantity,
+                "ProductsIDs": InsufficientQuantityProducts,
+            }
 
         transition_document = Transition_Documents(
-            Source_Store_ID = source_store,
-            Destination_Store_ID = destination_store
+            Source_Store_ID=source_store, Destination_Store_ID=destination_store
         )
         transition_document.save(using=DBName)
         for Item in Items:
             transition_item = Transition_Items(
-                Document_ID = transition_document,
-                Product_ID = Item['ProductID'],
-                Quantity = Item['TotalQuantity']
+                Document_ID=transition_document,
+                Product_ID=Item["ProductID"],
+                Quantity=Item["TotalQuantity"],
             )
             transition_item.save(using=DBName)
         connections[DBName].commit()
-        return {"StatusCode": 0,"Data": "OK"}
+        return {"StatusCode": 0, "Data": "OK"}
 
     @staticmethod
     def SearchProducts(DBName, RequestList: dict):
@@ -679,7 +894,9 @@ class ProcessRequest:
         del RequestList["ProjectID"]
         del RequestList["StoreID"]
         del RequestList["RefreshToken"]
-        FilterArguments = FilterArguments | {f+"__contains": RequestList[f] for f in RequestList.keys()}
+        FilterArguments = FilterArguments | {
+            f + "__contains": RequestList[f] for f in RequestList.keys()
+        }
         products_list = (
             Product_Quantity_Table.objects.using(DBName)
             .select_related("Product_ID")
@@ -699,7 +916,7 @@ class ProcessRequest:
                 "Quantity",
             )
         )
-        return {"StatusCode":0,"Data":list(products_list)}
+        return {"StatusCode": 0, "Data": list(products_list)}
 
     @staticmethod
     def SearchInvoices(DBName, RequestList):
@@ -707,7 +924,7 @@ class ProcessRequest:
         FilterArguments = {
             "Store_ID": RequestList["StoreID"],
             "DateTime__gte": RequestList["FromDateTime"],
-            "DateTime__lte": RequestList["ToDateTime"]
+            "DateTime__lte": RequestList["ToDateTime"],
         }
         del RequestList["RequestType"]
         del RequestList["ProjectID"]
@@ -716,7 +933,9 @@ class ProcessRequest:
         del RequestList["FromDateTime"]
         del RequestList["ToDateTime"]
         del RequestList["RefreshToken"]
-        FilterArguments = FilterArguments | {f+"__contains": RequestList[f] for f in RequestList.keys()}
+        FilterArguments = FilterArguments | {
+            f + "__contains": RequestList[f] for f in RequestList.keys()
+        }
         match InvoiceType:
             case "Selling":
                 invoices_list = (
@@ -725,16 +944,20 @@ class ProcessRequest:
                     .values()
                 )
             case "Purchase":
-                invoices_list = Purchase_Invoices.objects.using(DBName).filter(**FilterArguments).values()
+                invoices_list = (
+                    Purchase_Invoices.objects.using(DBName)
+                    .filter(**FilterArguments)
+                    .values()
+                )
 
-        return {"StatusCode":0,"Data":list(invoices_list)}
+        return {"StatusCode": 0, "Data": list(invoices_list)}
 
     @staticmethod
     def SearchTransitionDocuments(DBName, RequestList: dict):
         StoreID = RequestList["StoreID"]
         FilterArguments = {
             "DateTime__gte": RequestList["FromDateTime"],
-            "DateTime__lte": RequestList["ToDateTime"]
+            "DateTime__lte": RequestList["ToDateTime"],
         }
         del RequestList["RequestType"]
         del RequestList["ProjectID"]
@@ -743,7 +966,9 @@ class ProcessRequest:
         del RequestList["ToDateTime"]
         del RequestList["RefreshToken"]
         if "Source_Store_ID" in RequestList and "Destination_Store_ID" in RequestList:
-            StoreFilter = Q(Source_Store_ID=RequestList["Source_Store_ID"]) | Q(Destination_Store_ID=RequestList["Destination_Store_ID"])
+            StoreFilter = Q(Source_Store_ID=RequestList["Source_Store_ID"]) | Q(
+                Destination_Store_ID=RequestList["Destination_Store_ID"]
+            )
             del RequestList["Source_Store_ID"]
             del RequestList["Destination_Store_ID"]
         elif "Destination_Store_ID" in RequestList:
@@ -754,27 +979,56 @@ class ProcessRequest:
             del RequestList["Source_Store_ID"]
         else:
             StoreFilter = Q()
-        FilterArguments = FilterArguments | {f+"__contains": RequestList[f] for f in RequestList.keys()}
-        documents_list = Transition_Documents.objects.using(DBName).filter((Q(Source_Store_ID=StoreID) | Q(Destination_Store_ID=StoreID)) & StoreFilter,**FilterArguments).select_related('Source_Store_ID', 'Destination_Store_ID').values(
-            'Document_ID', 'DateTime',
-            'Source_Store_ID__Store_ID', 'Source_Store_ID__Store_Name',
-            'Destination_Store_ID__Store_ID', 'Destination_Store_ID__Store_Name'
+        FilterArguments = FilterArguments | {
+            f + "__contains": RequestList[f] for f in RequestList.keys()
+        }
+        documents_list = (
+            Transition_Documents.objects.using(DBName)
+            .filter(
+                (Q(Source_Store_ID=StoreID) | Q(Destination_Store_ID=StoreID))
+                & StoreFilter,
+                **FilterArguments,
+            )
+            .select_related("Source_Store_ID", "Destination_Store_ID")
+            .values(
+                "Document_ID",
+                "DateTime",
+                "Source_Store_ID__Store_ID",
+                "Source_Store_ID__Store_Name",
+                "Destination_Store_ID__Store_ID",
+                "Destination_Store_ID__Store_Name",
+            )
         )
-        return {"StatusCode":0,"Data":list(documents_list)}
+        return {"StatusCode": 0, "Data": list(documents_list)}
 
     @staticmethod
     def GetInvoice(DBName, RequestList):
         InvoiceType = RequestList["InvoiceType"]
         InvoiceID = RequestList["InvoiceID"]
         if InvoiceType == "Selling":
-            InvoiceInfo = Selling_Invoices.objects.using(DBName).select_related('Store_ID').filter(Invoice_ID=InvoiceID).values(
-                'Invoice_ID', 'DateTime', 'Store_ID__Store_ID', 'Store_ID__Store_Name',
-                'Client_Name', 'Total_Price', 'Paid', 'Transferred_To_Debt_Account'
-            ).first()
-            if (InvoiceInfo is None):
-                return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"InvoiceID"}
+            InvoiceInfo = (
+                Selling_Invoices.objects.using(DBName)
+                .select_related("Store_ID")
+                .filter(Invoice_ID=InvoiceID)
+                .values(
+                    "Invoice_ID",
+                    "DateTime",
+                    "Store_ID__Store_ID",
+                    "Store_ID__Store_Name",
+                    "Client_Name",
+                    "Total_Price",
+                    "Paid",
+                    "Transferred_To_Debt_Account",
+                )
+                .first()
+            )
+            if InvoiceInfo is None:
+                return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "InvoiceID"}
             items = (
-                Selling_Items.objects.using(DBName).select_related("Product_ID").filter(Invoice_ID=InvoiceID).values(
+                Selling_Items.objects.using(DBName)
+                .select_related("Product_ID")
+                .filter(Invoice_ID=InvoiceID)
+                .values(
                     "Product_ID__Product_ID",
                     "Product_ID__Product_Name",
                     "Product_ID__Trademark",
@@ -787,14 +1041,29 @@ class ProcessRequest:
                 )
             )
         else:
-            InvoiceInfo = Purchase_Invoices.objects.using(DBName).select_related('Store_ID').filter(Invoice_ID=InvoiceID).values(
-                'Invoice_ID', 'DateTime', 'Store_ID__Store_ID', 'Store_ID__Store_Name',
-                'Seller_Name', 'Total_Price', 'Paid', 'Deducted_From_Debt_Account'
-            ).first()
-            if (InvoiceInfo is None):
-                return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"InvoiceID"}
+            InvoiceInfo = (
+                Purchase_Invoices.objects.using(DBName)
+                .select_related("Store_ID")
+                .filter(Invoice_ID=InvoiceID)
+                .values(
+                    "Invoice_ID",
+                    "DateTime",
+                    "Store_ID__Store_ID",
+                    "Store_ID__Store_Name",
+                    "Seller_Name",
+                    "Total_Price",
+                    "Paid",
+                    "Deducted_From_Debt_Account",
+                )
+                .first()
+            )
+            if InvoiceInfo is None:
+                return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "InvoiceID"}
             items = (
-                Purchase_Items.objects.using(DBName).select_related("Product_ID").filter(Invoice_ID=InvoiceID).values(
+                Purchase_Items.objects.using(DBName)
+                .select_related("Product_ID")
+                .filter(Invoice_ID=InvoiceID)
+                .values(
                     "Product_ID__Product_ID",
                     "Product_ID__Product_Name",
                     "Product_ID__Trademark",
@@ -808,7 +1077,7 @@ class ProcessRequest:
             )
 
         InvoiceInfo["Items"] = list(items)
-        return {"StatusCode":0,"Data":InvoiceInfo}
+        return {"StatusCode": 0, "Data": InvoiceInfo}
 
     @staticmethod
     def GetTransitionDocument(DBName, RequestList):
@@ -828,7 +1097,7 @@ class ProcessRequest:
             .first()
         )
         if not DocumentInfo:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"DocumentID"}
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "DocumentID"}
         items = (
             Transition_Items.objects.using(DBName)
             .select_related("Product_ID")
@@ -845,38 +1114,49 @@ class ProcessRequest:
             )
         )
         DocumentInfo["Items"] = list(items)
-        return {"StatusCode":0,"Data":DocumentInfo}
+        return {"StatusCode": 0, "Data": DocumentInfo}
 
     @staticmethod
     def AdjustProductQuantity(DBName, RequestList: dict, store):
         OperationType, ProductID, Quantity = (
-            RequestList["OperationType"], RequestList["ProductID"], RequestList["Quantity"])
+            RequestList["OperationType"],
+            RequestList["ProductID"],
+            RequestList["Quantity"],
+        )
         match OperationType:
             case "MoreThanPurchaseInvoice" | "Fixed" | "Found":
                 Product_Quantity_Table.objects.using(DBName).filter(
                     Store_ID=store, Product_ID=ProductID
                 ).update(Quantity=F("Quantity") + Quantity)
             case "LessThanPurchaseInvoice" | "Damaged" | "Lost":
-                product_quantity = Product_Quantity_Table.objects.using(DBName).get(Store_ID=store, Product_ID=ProductID)
+                product_quantity = Product_Quantity_Table.objects.using(DBName).get(
+                    Store_ID=store, Product_ID=ProductID
+                )
                 if product_quantity.Quantity < Decimal(Quantity):
-                    return {"StatusCode":ErrorCodes.InsufficientQuantity,"ProductID":ProductID}
-                Product_Quantity_Table.objects.using(DBName).filter(Store_ID=store, Product_ID=ProductID).update(Quantity=F('Quantity') - Quantity)
+                    return {
+                        "StatusCode": ErrorCodes.InsufficientQuantity,
+                        "ProductID": ProductID,
+                    }
+                Product_Quantity_Table.objects.using(DBName).filter(
+                    Store_ID=store, Product_ID=ProductID
+                ).update(Quantity=F("Quantity") - Quantity)
         adjustment_operation = Products_Quantities_Adjustments(
-            Store_ID = store,
-            Product_ID = Products_Table.objects.using(DBName).get(Product_ID=ProductID),
-            Operation_Type = OperationType,
-            Quantity = Quantity,
-            Note = RequestList.get("Note", "")
+            Store_ID=store,
+            Product_ID=Products_Table.objects.using(DBName).get(Product_ID=ProductID),
+            Operation_Type=OperationType,
+            Quantity=Quantity,
+            Note=RequestList.get("Note", ""),
         )
         adjustment_operation.save(using=DBName)
         connections[DBName].commit()
-        return {"StatusCode":0,"Data":"OK"}
+        return {"StatusCode": 0, "Data": "OK"}
+
     @staticmethod
     def SearchAdjustmentOperations(DBName, RequestList):
         StoreID = RequestList["StoreID"]
         FilterArguments = {
             "DateTime__gte": RequestList["FromDateTime"],
-            "DateTime__lte": RequestList["ToDateTime"]
+            "DateTime__lte": RequestList["ToDateTime"],
         }
         del RequestList["RequestType"]
         del RequestList["ProjectID"]
@@ -884,7 +1164,9 @@ class ProcessRequest:
         del RequestList["FromDateTime"]
         del RequestList["ToDateTime"]
         del RequestList["RefreshToken"]
-        FilterArguments = FilterArguments | {f+"__contains": RequestList[f] for f in RequestList.keys()}
+        FilterArguments = FilterArguments | {
+            f + "__contains": RequestList[f] for f in RequestList.keys()
+        }
         adjustments_list = (
             Products_Quantities_Adjustments.objects.using(DBName)
             .select_related("Product_ID")
@@ -902,7 +1184,7 @@ class ProcessRequest:
                 "Note",
             )
         )
-        return {"StatusCode":0,"Data":list(adjustments_list)}
+        return {"StatusCode": 0, "Data": list(adjustments_list)}
 
 
 class SearchFiltersValidation:
@@ -911,52 +1193,83 @@ class SearchFiltersValidation:
         for Filter in RequestList.keys():
             match Filter:
                 case "Invoice_ID":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "Total_Price":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "Paid":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "Transferred_To_Debt_Account":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "Product_ID":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "Product_Name" | "Client_Name":
                     pass
                 case "Quantity":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "Selling_Price":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-                case "RequestType" | "InvoiceType" | "ProjectID" | "StoreID" | "FromDateTime" | "ToDateTime" | "RefreshToken":
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+                case (
+                    "RequestType"
+                    | "InvoiceType"
+                    | "ProjectID"
+                    | "StoreID"
+                    | "FromDateTime"
+                    | "ToDateTime"
+                    | "RefreshToken"
+                ):
                     pass
                 case _:
-                    return {"StatusCode":ErrorCodes.InvalidValue,"Filter":Filter}
+                    return {"StatusCode": ErrorCodes.InvalidValue, "Filter": Filter}
         return 0
-    
+
     @staticmethod
     def PurchaseInvoices(RequestList):
         for Filter in RequestList.keys():
             match Filter:
                 case "Invoice_ID":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "Total_Price":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "Paid":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "Deducted_From_Debt_Account":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "Product_ID":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "Product_Name" | "Seller_Name":
                     pass
                 case "Quantity":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "Purchase_Price":
-                    if not isintstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-                case "RequestType" | "InvoiceType" | "ProjectID" | "StoreID" | "FromDateTime" | "ToDateTime" | "RefreshToken":
+                    if not isintstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+                case (
+                    "RequestType"
+                    | "InvoiceType"
+                    | "ProjectID"
+                    | "StoreID"
+                    | "FromDateTime"
+                    | "ToDateTime"
+                    | "RefreshToken"
+                ):
                     pass
                 case _:
-                    return {"StatusCode":ErrorCodes.InvalidValue,"Filter":Filter}
+                    return {"StatusCode": ErrorCodes.InvalidValue, "Filter": Filter}
         return 0
+
 
 def GetItems(DBName, RequestList: dict):
     i = 0
@@ -965,50 +1278,93 @@ def GetItems(DBName, RequestList: dict):
     TotalPrice = Decimal()
     while True:
         if i > PURCHASE_INVOICE_LENGTH:
-            return {"StatusCode": ErrorCodes.ExceededMaximum, "Variable": "Items"} , 0
+            return {"StatusCode": ErrorCodes.ExceededMaximum, "Variable": "Items"}, 0
         Item = {}
         if (Para := RequestList.get(f"Items[{i}][ProductID]")) is not None:
             if not isintstr(Para):
-                return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":f"Items[{i}][ProductID]"}, 0
-            if (product := Products_Table.objects.using(DBName).filter(Product_ID = Para).first()) is None:
-                return {"StatusCode":ErrorCodes.NonexistentProduct,"Variable":f"Items[{i}][ProductID]"}, 0
+                return {
+                    "StatusCode": ErrorCodes.InvalidDataType,
+                    "Variable": f"Items[{i}][ProductID]",
+                }, 0
+            if (
+                product := Products_Table.objects.using(DBName)
+                .filter(Product_ID=Para)
+                .first()
+            ) is None:
+                return {
+                    "StatusCode": ErrorCodes.NonexistentProduct,
+                    "Variable": f"Items[{i}][ProductID]",
+                }, 0
             Item["ProductID"] = Para
             ConvertionRate = Decimal(product.Conversion_Rate)
         if (Para := RequestList.get(f"Items[{i}][SmallQuantity]")) is not None:
             if not isnumberstr(Para):
-                return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":f"Items[{i}][SmallQuantity]"}, 0
+                return {
+                    "StatusCode": ErrorCodes.InvalidDataType,
+                    "Variable": f"Items[{i}][SmallQuantity]",
+                }, 0
             Item["SmallQuantity"] = Decimal(Para)
             if Item["SmallQuantity"] < 0:
-                return {"StatusCode":ErrorCodes.InvalidValue,"Variable":f"Items[{i}][SmallQuantity]"}, 0
+                return {
+                    "StatusCode": ErrorCodes.InvalidValue,
+                    "Variable": f"Items[{i}][SmallQuantity]",
+                }, 0
             # Check if SmallQuantity has decimal part while partial quantities are not allowed
-            if not Item["SmallQuantity"] % 1 == 0 and not product.Partial_Small_Quantity_Allowed:
-                return {"StatusCode":ErrorCodes.PartialQuantityNotAllowed,"Variable":f"Items[{i}][SmallQuantity]"}, 0
+            if (
+                not Item["SmallQuantity"] % 1 == 0
+                and not product.Partial_Small_Quantity_Allowed
+            ):
+                return {
+                    "StatusCode": ErrorCodes.PartialQuantityNotAllowed,
+                    "Variable": f"Items[{i}][SmallQuantity]",
+                }, 0
         if (Para := RequestList.get(f"Items[{i}][LargeQuantity]")) is not None:
             if not isnumberstr(Para):
-                return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":f"Items[{i}][LargeQuantity]"}, 0
+                return {
+                    "StatusCode": ErrorCodes.InvalidDataType,
+                    "Variable": f"Items[{i}][LargeQuantity]",
+                }, 0
             Item["LargeQuantity"] = Decimal(Para)
         if (Para := RequestList.get(f"Items[{i}][UnitPrice]")) is not None:
             if not isnumberstr(Para):
-                return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":f"Items[{i}][UnitPrice]"}, 0
+                return {
+                    "StatusCode": ErrorCodes.InvalidDataType,
+                    "Variable": f"Items[{i}][UnitPrice]",
+                }, 0
             Item["UnitPrice"] = round(Decimal(Para), 4)
             if Item["UnitPrice"] < 0:
-                return {"StatusCode":ErrorCodes.InvalidValue,"Variable":f"Items[{i}][UnitPrice]"}, 0
-            
+                return {
+                    "StatusCode": ErrorCodes.InvalidValue,
+                    "Variable": f"Items[{i}][UnitPrice]",
+                }, 0
+
         if not Item:
             break
         elif len(Item.keys()) < 4:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Variable":f"Items[{i}]"}, 0
+            return {
+                "StatusCode": ErrorCodes.MissingVariables,
+                "Variable": f"Items[{i}]",
+            }, 0
         if Item["LargeQuantity"] == 0 and Item["SmallQuantity"] == 0:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":f"Items[{i}][Quantity]"}, 0
+            return {
+                "StatusCode": ErrorCodes.InvalidValue,
+                "Variable": f"Items[{i}][Quantity]",
+            }, 0
         if not Item["ProductID"] in ItemsIDs:
             Items.append(Item)
             ItemsIDs.append(Item["ProductID"])
         else:
-            return {"StatusCode":ErrorCodes.RedundantValue,"Variable":f"Items[{i}]"}, 0
-        Item["TotalQuantity"] = Decimal(Item["LargeQuantity"]) * ConvertionRate + Decimal(Item["SmallQuantity"])
+            return {
+                "StatusCode": ErrorCodes.RedundantValue,
+                "Variable": f"Items[{i}]",
+            }, 0
+        Item["TotalQuantity"] = Decimal(
+            Item["LargeQuantity"]
+        ) * ConvertionRate + Decimal(Item["SmallQuantity"])
         TotalPrice += Item["TotalQuantity"] * Item["UnitPrice"]
         i += 1
     return Items, round(TotalPrice, 2)
+
 
 def getTransitionItems(DBName, RequestList: dict):
     i = 0
@@ -1020,68 +1376,126 @@ def getTransitionItems(DBName, RequestList: dict):
         Item = {}
         if (Para := RequestList.get(f"Items[{i}][ProductID]")) is not None:
             if not isintstr(Para):
-                return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":f"Items[{i}][ProductID]"}
-            if (product := Products_Table.objects.using(DBName).filter(Product_ID = Para).first()) is None:
-                return {"StatusCode":ErrorCodes.NonexistentProduct,"Variable":f"Items[{i}][ProductID]"}
+                return {
+                    "StatusCode": ErrorCodes.InvalidDataType,
+                    "Variable": f"Items[{i}][ProductID]",
+                }
+            if (
+                product := Products_Table.objects.using(DBName)
+                .filter(Product_ID=Para)
+                .first()
+            ) is None:
+                return {
+                    "StatusCode": ErrorCodes.NonexistentProduct,
+                    "Variable": f"Items[{i}][ProductID]",
+                }
             Item["ProductID"] = Para
             ConvertionRate = Decimal(product.Conversion_Rate)
         if (Para := RequestList.get(f"Items[{i}][LargeQuantity]")) is not None:
             if not isnumberstr(Para):
-                return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":f"Items[{i}][LargeQuantity]"}
+                return {
+                    "StatusCode": ErrorCodes.InvalidDataType,
+                    "Variable": f"Items[{i}][LargeQuantity]",
+                }
             Item["LargeQuantity"] = Decimal(Para)
             if Item["LargeQuantity"] < 0:
-                return {"StatusCode":ErrorCodes.InvalidValue,"Variable":f"Items[{i}][LargeQuantity]"}
-            
+                return {
+                    "StatusCode": ErrorCodes.InvalidValue,
+                    "Variable": f"Items[{i}][LargeQuantity]",
+                }
+
         if (Para := RequestList.get(f"Items[{i}][SmallQuantity]")) is not None:
             if not isnumberstr(Para):
-                return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":f"Items[{i}][SmallQuantity]"}
+                return {
+                    "StatusCode": ErrorCodes.InvalidDataType,
+                    "Variable": f"Items[{i}][SmallQuantity]",
+                }
             Item["SmallQuantity"] = Decimal(Para)
             if Item["SmallQuantity"] < 0:
-                return {"StatusCode":ErrorCodes.InvalidValue,"Variable":f"Items[{i}][SmallQuantity]"}
+                return {
+                    "StatusCode": ErrorCodes.InvalidValue,
+                    "Variable": f"Items[{i}][SmallQuantity]",
+                }
             # Check if SmallQuantity has decimal part while partial quantities are not allowed
-            if not Item["SmallQuantity"] % 1 == 0 and not product.Partial_Small_Quantity_Allowed:
-                return {"StatusCode":ErrorCodes.PartialQuantityNotAllowed,"Variable":f"Items[{i}][SmallQuantity]"}, 0
+            if (
+                not Item["SmallQuantity"] % 1 == 0
+                and not product.Partial_Small_Quantity_Allowed
+            ):
+                return {
+                    "StatusCode": ErrorCodes.PartialQuantityNotAllowed,
+                    "Variable": f"Items[{i}][SmallQuantity]",
+                }, 0
         if not Item:
             break
         elif len(Item.keys()) < 3:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Variable":f"Items[{i}]"}
+            return {
+                "StatusCode": ErrorCodes.MissingVariables,
+                "Variable": f"Items[{i}]",
+            }
         if not Item["ProductID"] in ItemsIDs:
             ItemsIDs.append(Item["ProductID"])
             Items.append(Item)
         else:
-            return {"StatusCode":ErrorCodes.RedundantValue,"Variable":f"Items[{i}]"}
-        Item["TotalQuantity"] = Decimal(Item["LargeQuantity"]) * ConvertionRate + Decimal(Item["SmallQuantity"])
+            return {"StatusCode": ErrorCodes.RedundantValue, "Variable": f"Items[{i}]"}
+        Item["TotalQuantity"] = Decimal(
+            Item["LargeQuantity"]
+        ) * ConvertionRate + Decimal(Item["SmallQuantity"])
         i += 1
     return Items
 
+
 def checkPermissions(RefreshToken, ProjectID, Permission):
-    if not (user := get_refresh_token_user(RefreshToken)): return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"RefreshToken"}
-    if user == 1: return {"StatusCode":ErrorCodes.UserNotFound,"Data":""}
+    if not (user := get_refresh_token_user(RefreshToken)):
+        return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "RefreshToken"}
+    if user == 1:
+        return {"StatusCode": ErrorCodes.UserNotFound, "Data": ""}
     # Check if user is owner of the project.
     if Projects_Table.objects.filter(Project_ID=ProjectID, Project_Owner=user).exists():
         return 0
     # Check if user is employee in the project.
-    employee_account = Project_Employees.objects.using(f"Project{ProjectID}").filter(Account_ID=user.id).first()
-    if employee_account is None or not employee_account.Still_Employee: return {"StatusCode":ErrorCodes.Unauthorized,"Data":""}
+    employee_account = (
+        Project_Employees.objects.using(f"Project{ProjectID}")
+        .filter(Account_ID=user.id)
+        .first()
+    )
+    if employee_account is None or not employee_account.Still_Employee:
+        return {"StatusCode": ErrorCodes.Unauthorized, "Data": ""}
     # Check if employee has the required permission.
-    employee_permissions = Employee_Permissions.objects.using(f"Project{ProjectID}").get(Employee_ID=employee_account.Employee_ID)
+    employee_permissions = Employee_Permissions.objects.using(
+        f"Project{ProjectID}"
+    ).get(Employee_ID=employee_account.Employee_ID)
     if not employee_permissions.__dict__.get(Permission, False):
-        return {"StatusCode":ErrorCodes.Unauthorized,"Data":""}
+        return {"StatusCode": ErrorCodes.Unauthorized, "Data": ""}
     return 0
 
-ValidInvoiceTypes = ["Selling","Purchase"]
+
+ValidInvoiceTypes = ["Selling", "Purchase"]
+
+
 class CheckValidation:
     @staticmethod
     def CreateProject(RequestList):
         try:
-            ProjectName, ProjectDescription, RefreshToken = RequestList["ProjectName"], RequestList["ProjectDescription"], RequestList["RefreshToken"]
+            ProjectName, ProjectDescription, RefreshToken = (
+                RequestList["ProjectName"],
+                RequestList["ProjectDescription"],
+                RequestList["RefreshToken"],
+            )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if len(ProjectName) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ProjectName"}
-        if len(ProjectDescription) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ProjectDescription"}
-        if not (user := get_refresh_token_user(RefreshToken)): return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"RefreshToken"}
-        if user is None: return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"RefreshToken"}
-        if user == 1: return {"StatusCode":ErrorCodes.UserNotFound,"Data":""}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if len(ProjectName) == 0:
+            return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "ProjectName"}
+        if len(ProjectDescription) == 0:
+            return {
+                "StatusCode": ErrorCodes.EmptyValue,
+                "Variable": "ProjectDescription",
+            }
+        if not (user := get_refresh_token_user(RefreshToken)):
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "RefreshToken"}
+        if user is None:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "RefreshToken"}
+        if user == 1:
+            return {"StatusCode": ErrorCodes.UserNotFound, "Data": ""}
         return ProcessRequest.CreateProject(RequestList, user)
 
     @staticmethod
@@ -1089,24 +1503,37 @@ class CheckValidation:
         try:
             ProjectID, PersonName = RequestList["ProjectID"], RequestList["PersonName"]
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if len(PersonName) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable": "PersonName"}
-        if Debt_Accounts.objects.using(f"Project{ProjectID}").filter(Person_Name=PersonName).exists():
-            return {"StatusCode":ErrorCodes.RedundantValue,"Variable":"PersonName"}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if len(PersonName) == 0:
+            return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "PersonName"}
+        if (
+            Debt_Accounts.objects.using(f"Project{ProjectID}")
+            .filter(Person_Name=PersonName)
+            .exists()
+        ):
+            return {"StatusCode": ErrorCodes.RedundantValue, "Variable": "PersonName"}
         return ProcessRequest.CreateAccount(f"Project{ProjectID}", RequestList)
 
     @staticmethod
     def AddStore(RequestList):
         try:
-            ProjectID, StoreName, RefreshToken = RequestList["ProjectID"], RequestList["StoreName"], RequestList["RefreshToken"]
+            ProjectID, StoreName, RefreshToken = (
+                RequestList["ProjectID"],
+                RequestList["StoreName"],
+                RequestList["RefreshToken"],
+            )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"ProjectID"}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "ProjectID"}
 
-        if len(StoreName) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"StoreName"}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Add_Store")):
+        if len(StoreName) == 0:
+            return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "StoreName"}
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Add_Store"):
             return error
         return ProcessRequest.AddStore(f"Project{ProjectID}", RequestList)
 
@@ -1115,10 +1542,12 @@ class CheckValidation:
         try:
             ProjectID = RequestList["ProjectID"]
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
         ProjectID = int(ProjectID)
-        if ProjectsDBsConnectors.get(ProjectID) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
+        if ProjectsDBsConnectors.get(ProjectID) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
         return ProcessRequest.GetStores(f"Project{ProjectID}")
 
     @staticmethod
@@ -1136,7 +1565,7 @@ class CheckValidation:
                 SmallQuantityUnit,
                 ConversionRate,
                 PartialSmallQuantityAllowed,
-                RefreshToken
+                RefreshToken,
             ) = (
                 RequestList["ProjectID"],
                 RequestList["ProductName"],
@@ -1149,36 +1578,69 @@ class CheckValidation:
                 RequestList["SmallQuantityUnit"],
                 RequestList["ConversionRate"],
                 RequestList["PartialSmallQuantityAllowed"],
-                RequestList["RefreshToken"]
+                RequestList["RefreshToken"],
             )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType, "Variable":"ProjectID"}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "ProjectID"}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
         if not Stores_Table.objects.using(f"Project{ProjectID}").exists():
-            return {"StatusCode":ErrorCodes.NoStoresExist,"Data":""}
-        if RequestList.get("ProductOrder") is not None and not isintstr(RequestList["ProductOrder"]):
-            return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ProductOrder"}
-        if not isnumberstr(PurchasePrice):return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if not isnumberstr(WholesalePrice):return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if not isnumberstr(RetailPrice):return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if len(ProductName) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable": "ProductName"}
-        if len(Trademark) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"Trademark"}
-        if len(ManufactureCountry) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ManufactureCountry"}
+            return {"StatusCode": ErrorCodes.NoStoresExist, "Data": ""}
+        if RequestList.get("ProductOrder") is not None and not isintstr(
+            RequestList["ProductOrder"]
+        ):
+            return {
+                "StatusCode": ErrorCodes.InvalidDataType,
+                "Variable": "ProductOrder",
+            }
+        if not isnumberstr(PurchasePrice):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if not isnumberstr(WholesalePrice):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if not isnumberstr(RetailPrice):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if len(ProductName) == 0:
+            return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "ProductName"}
+        if len(Trademark) == 0:
+            return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "Trademark"}
+        if len(ManufactureCountry) == 0:
+            return {
+                "StatusCode": ErrorCodes.EmptyValue,
+                "Variable": "ManufactureCountry",
+            }
 
-        if not isnumberstr(ConversionRate): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ConversionRate"}
+        if not isnumberstr(ConversionRate):
+            return {
+                "StatusCode": ErrorCodes.InvalidDataType,
+                "Variable": "ConversionRate",
+            }
         ConversionRate = float(ConversionRate)
         if ConversionRate <= 1.0:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"ConversionRate"}
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "ConversionRate"}
         if len(LargeQuantityUnit) == 0:
-            return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"LargeQuantityUnit"}
-        if len(SmallQuantityUnit) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"SmallQuantityUnit"}
-        if PartialSmallQuantityAllowed not in ["True","False"]:
-            return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"PartialSmallQuantityAllowed"}
-        if float(PurchasePrice) < 0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
-        if float(WholesalePrice) < 0:return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
-        if float(RetailPrice) < 0:return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Add_Product")):
+            return {
+                "StatusCode": ErrorCodes.EmptyValue,
+                "Variable": "LargeQuantityUnit",
+            }
+        if len(SmallQuantityUnit) == 0:
+            return {
+                "StatusCode": ErrorCodes.EmptyValue,
+                "Variable": "SmallQuantityUnit",
+            }
+        if PartialSmallQuantityAllowed not in ["True", "False"]:
+            return {
+                "StatusCode": ErrorCodes.InvalidDataType,
+                "Variable": "PartialSmallQuantityAllowed",
+            }
+        if float(PurchasePrice) < 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
+        if float(WholesalePrice) < 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
+        if float(RetailPrice) < 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Add_Product"):
             return error
         return ProcessRequest.AddProduct(f"Project{ProjectID}", RequestList)
 
@@ -1198,7 +1660,7 @@ class CheckValidation:
                 SmallQuantityUnit,
                 ConversionRate,
                 PartialSmallQuantityAllowed,
-                RefreshToken
+                RefreshToken,
             ) = (
                 RequestList["ProjectID"],
                 RequestList["ProductID"],
@@ -1212,41 +1674,80 @@ class CheckValidation:
                 RequestList["SmallQuantityUnit"],
                 RequestList["ConversionRate"],
                 RequestList["PartialSmallQuantityAllowed"],
-                RequestList["RefreshToken"]
+                RequestList["RefreshToken"],
             )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ProjectID"}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "ProjectID"}
         if ProjectsDBsConnectors.get(int(ProjectID)) is None:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
         # TODO: Add ability to edit ProductOrder
-        if not isintstr(ProductID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        is_product_exists = Products_Table.objects.using(f"Project{ProjectID}").filter(Product_ID=ProductID).exists()
+        if not isintstr(ProductID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        is_product_exists = (
+            Products_Table.objects.using(f"Project{ProjectID}")
+            .filter(Product_ID=ProductID)
+            .exists()
+        )
         if not is_product_exists:
-            return {"StatusCode":ErrorCodes.NonexistentProduct,"Variable":"ProductID"}
+            return {
+                "StatusCode": ErrorCodes.NonexistentProduct,
+                "Variable": "ProductID",
+            }
         # if RequestList.get("ProductOrder") is not None and not isintstr(RequestList["ProductOrder"]):
         #     return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ProductOrder"}
-        if not isnumberstr(PurchasePrice):return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if not isnumberstr(WholesalePrice):return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if not isnumberstr(RetailPrice):return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if len(ProductName) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable": "ProductName"}
-        if len(Trademark) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"Trademark"}
-        if len(ManufactureCountry) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ManufactureCountry"}
+        if not isnumberstr(PurchasePrice):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if not isnumberstr(WholesalePrice):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if not isnumberstr(RetailPrice):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if len(ProductName) == 0:
+            return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "ProductName"}
+        if len(Trademark) == 0:
+            return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "Trademark"}
+        if len(ManufactureCountry) == 0:
+            return {
+                "StatusCode": ErrorCodes.EmptyValue,
+                "Variable": "ManufactureCountry",
+            }
 
-        if not isnumberstr(ConversionRate): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ConversionRate"}
+        if not isnumberstr(ConversionRate):
+            return {
+                "StatusCode": ErrorCodes.InvalidDataType,
+                "Variable": "ConversionRate",
+            }
         ConversionRate = float(ConversionRate)
         if ConversionRate <= 1.0:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"ConversionRate"}
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "ConversionRate"}
         if len(LargeQuantityUnit) == 0:
-            return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"LargeQuantityUnit"}
-        if isnumberstr(ConversionRate) is False: return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ConversionRate"}
-        if len(SmallQuantityUnit) == 0:return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"SmallQuantityUnit"}
-        if PartialSmallQuantityAllowed not in ["True","False"]:
-            return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"PartialSmallQuantityAllowed"}
-        if float(PurchasePrice) < 0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
-        if float(WholesalePrice) < 0:return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
-        if float(RetailPrice) < 0:return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Product")):
+            return {
+                "StatusCode": ErrorCodes.EmptyValue,
+                "Variable": "LargeQuantityUnit",
+            }
+        if isnumberstr(ConversionRate) is False:
+            return {
+                "StatusCode": ErrorCodes.InvalidDataType,
+                "Variable": "ConversionRate",
+            }
+        if len(SmallQuantityUnit) == 0:
+            return {
+                "StatusCode": ErrorCodes.EmptyValue,
+                "Variable": "SmallQuantityUnit",
+            }
+        if PartialSmallQuantityAllowed not in ["True", "False"]:
+            return {
+                "StatusCode": ErrorCodes.InvalidDataType,
+                "Variable": "PartialSmallQuantityAllowed",
+            }
+        if float(PurchasePrice) < 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
+        if float(WholesalePrice) < 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
+        if float(RetailPrice) < 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Product"):
             return error
         return ProcessRequest.EditProductInfo(f"Project{ProjectID}", RequestList)
 
@@ -1255,14 +1756,23 @@ class CheckValidation:
         try:
             ProjectID, ProductID = RequestList["ProjectID"], RequestList["ProductID"]
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ProjectID"}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "ProjectID"}
         if ProjectsDBsConnectors.get(int(ProjectID)) is None:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"ProjectID"}
-        if not isintstr(ProductID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        is_product_exists = Products_Table.objects.using(f"Project{ProjectID}").filter(Product_ID=ProductID).exists()
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "ProjectID"}
+        if not isintstr(ProductID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        is_product_exists = (
+            Products_Table.objects.using(f"Project{ProjectID}")
+            .filter(Product_ID=ProductID)
+            .exists()
+        )
         if not is_product_exists:
-            return {"StatusCode":ErrorCodes.NonexistentProduct,"Variable":"ProductID"}
+            return {
+                "StatusCode": ErrorCodes.NonexistentProduct,
+                "Variable": "ProductID",
+            }
         return ProcessRequest.GetProductInfo(f"Project{ProjectID}", RequestList)
 
     @staticmethod
@@ -1270,33 +1780,45 @@ class CheckValidation:
         try:
             ProjectID, StoreID = RequestList["ProjectID"], RequestList["StoreID"]
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
         i = 0
         ProductsIDs = []
         while True:
-            if (ProductID := RequestList.get(f"ProductsIDs[{i}]")) is None: break
-            if not isintstr(ProductID): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":f"ProductsIDs[{i}]"}
+            if (ProductID := RequestList.get(f"ProductsIDs[{i}]")) is None:
+                break
+            if not isintstr(ProductID):
+                return {
+                    "StatusCode": ErrorCodes.InvalidDataType,
+                    "Variable": f"ProductsIDs[{i}]",
+                }
             ProductsIDs.append(ProductID)
-            i+=1
-        if len(ProductsIDs) == 0: return {"StatusCode":ErrorCodes.MissingVariables,"Variable":"ProductsIDs"}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(StoreID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+            i += 1
+        if len(ProductsIDs) == 0:
+            return {
+                "StatusCode": ErrorCodes.MissingVariables,
+                "Variable": "ProductsIDs",
+            }
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(StoreID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
 
-        if not (store := Stores_Table.objects.using(f"Project{ProjectID}").filter(Store_ID=StoreID).first()):
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
-        return ProcessRequest.GetProductsQuantities(f"Project{ProjectID}", ProductsIDs, store)
+        if not (
+            store := Stores_Table.objects.using(f"Project{ProjectID}")
+            .filter(Store_ID=StoreID)
+            .first()
+        ):
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "StoreID"}
+        return ProcessRequest.GetProductsQuantities(
+            f"Project{ProjectID}", ProductsIDs, store
+        )
 
     @staticmethod
     def Sell(RequestList):
         try:
-            (
-                ProjectID,
-                StoreID,
-                ClientName,
-                Paid,
-                RefreshToken
-            ) = (
+            (ProjectID, StoreID, ClientName, Paid, RefreshToken) = (
                 RequestList["ProjectID"],
                 RequestList["StoreID"],
                 RequestList["ClientName"],
@@ -1304,28 +1826,40 @@ class CheckValidation:
                 RequestList["RefreshToken"],
             )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
 
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(StoreID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if len(ClientName) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ClientName"}
-        if not isnumberstr(Paid): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(StoreID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if len(ClientName) == 0:
+            return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "ClientName"}
+        if not isnumberstr(Paid):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
         RequestList["Paid"] = Decimal(Paid)
-        if RequestList["Paid"] < 0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
+        if RequestList["Paid"] < 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
 
-        if not (store := Stores_Table.objects.using(f"Project{ProjectID}").filter(Store_ID=StoreID).first()):
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
+        if not (
+            store := Stores_Table.objects.using(f"Project{ProjectID}")
+            .filter(Store_ID=StoreID)
+            .first()
+        ):
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "StoreID"}
         Items, TotalPrice = GetItems(f"Project{ProjectID}", RequestList)
         if isinstance(Items, dict):
             return Items
         if len(Items) == 0:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Variable":"Items"}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Variable": "Items"}
         if RequestList["Paid"] > TotalPrice:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Paid"}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Sell")):
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "Paid"}
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Sell"):
             return error
-        return ProcessRequest.Sell(f"Project{ProjectID}", RequestList, Items, TotalPrice, store)
+        return ProcessRequest.Sell(
+            f"Project{ProjectID}", RequestList, Items, TotalPrice, store
+        )
 
     @staticmethod
     def Purchase(RequestList):
@@ -1335,29 +1869,41 @@ class CheckValidation:
                 RequestList["StoreID"],
                 RequestList["SellerName"],
                 RequestList["Paid"],
-                RequestList["RefreshToken"]
+                RequestList["RefreshToken"],
             )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables, "Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(StoreID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if len(SellerName) == 0: return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "SellerName"}
-        if not isnumberstr(Paid): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"Paid"}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(StoreID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if len(SellerName) == 0:
+            return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "SellerName"}
+        if not isnumberstr(Paid):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "Paid"}
         RequestList["Paid"] = Decimal(Paid)
-        if RequestList["Paid"] < 0: return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Paid"}
-        if not (store := Stores_Table.objects.using(f"Project{ProjectID}").filter(Store_ID=StoreID).first()):
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
+        if RequestList["Paid"] < 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "Paid"}
+        if not (
+            store := Stores_Table.objects.using(f"Project{ProjectID}")
+            .filter(Store_ID=StoreID)
+            .first()
+        ):
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "StoreID"}
         Items, TotalPrice = GetItems(f"Project{ProjectID}", RequestList)
         if isinstance(Items, dict):
             return Items
         if len(Items) == 0:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Variable":"Items"}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Variable": "Items"}
         if RequestList["Paid"] > TotalPrice:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Paid"}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Purchase")):
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "Paid"}
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Purchase"):
             return error
-        return ProcessRequest.Purchase(f"Project{ProjectID}", RequestList, Items, TotalPrice, store)
+        return ProcessRequest.Purchase(
+            f"Project{ProjectID}", RequestList, Items, TotalPrice, store
+        )
 
     @staticmethod
     def EditSellingInvoice(RequestList):
@@ -1370,56 +1916,85 @@ class CheckValidation:
                 RequestList["RefreshToken"],
             )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(InvoiceID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if not isnumberstr(Paid): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if float(Paid) < 0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
-        if len(ClientName) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"ClientName"}
-        selling_invoice = Selling_Invoices.objects.using(f"Project{ProjectID}").filter(Invoice_ID=InvoiceID).first()
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(InvoiceID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if not isnumberstr(Paid):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if float(Paid) < 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
+        if len(ClientName) == 0:
+            return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "ClientName"}
+        selling_invoice = (
+            Selling_Invoices.objects.using(f"Project{ProjectID}")
+            .filter(Invoice_ID=InvoiceID)
+            .first()
+        )
         if selling_invoice is None:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"InvoiceID"}
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "InvoiceID"}
         Items, TotalPrice = GetItems(f"Project{ProjectID}", RequestList)
         if isinstance(Items, dict):
             return Items
         if len(Items) == 0:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Variable":"Items"}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Variable": "Items"}
         RequestList["Paid"] = Decimal(Paid)
         if RequestList["Paid"] > TotalPrice:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Paid"}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Selling")):
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "Paid"}
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Selling"):
             return error
-        return ProcessRequest.EditSellingInvoice(f"Project{ProjectID}", selling_invoice, RequestList, Items, TotalPrice)
+        return ProcessRequest.EditSellingInvoice(
+            f"Project{ProjectID}", selling_invoice, RequestList, Items, TotalPrice
+        )
 
     @staticmethod
     def EditPurchaseInvoice(RequestList):
         try:
             ProjectID, InvoiceID, SellerName, Paid, RefreshToken = (
-                RequestList["ProjectID"], RequestList["InvoiceID"], RequestList["SellerName"], RequestList["Paid"], RequestList["RefreshToken"])
+                RequestList["ProjectID"],
+                RequestList["InvoiceID"],
+                RequestList["SellerName"],
+                RequestList["Paid"],
+                RequestList["RefreshToken"],
+            )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(InvoiceID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if not isnumberstr(Paid): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if len(SellerName) == 0: return {"StatusCode":ErrorCodes.EmptyValue,"Variable":"SellerName"}
-        if float(Paid) < 0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
-        purchase_invoice = Purchase_Invoices.objects.using(f"Project{ProjectID}").filter(Invoice_ID=InvoiceID).first()
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(InvoiceID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if not isnumberstr(Paid):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if len(SellerName) == 0:
+            return {"StatusCode": ErrorCodes.EmptyValue, "Variable": "SellerName"}
+        if float(Paid) < 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
+        purchase_invoice = (
+            Purchase_Invoices.objects.using(f"Project{ProjectID}")
+            .filter(Invoice_ID=InvoiceID)
+            .first()
+        )
         if purchase_invoice is None:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"InvoiceID"}
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "InvoiceID"}
 
         Items, TotalPrice = GetItems(f"Project{ProjectID}", RequestList)
         if isinstance(Items, dict):
             return Items
         if len(Items) == 0:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Variable":"Items"}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Variable": "Items"}
         RequestList["Paid"] = Decimal(Paid)
         if RequestList["Paid"] > TotalPrice:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable": "Paid"}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Purchase")):
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "Paid"}
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Purchase"):
             return error
-        return ProcessRequest.EditPurchaseInvoice(f"Project{ProjectID}", purchase_invoice, RequestList, Items, TotalPrice)
+        return ProcessRequest.EditPurchaseInvoice(
+            f"Project{ProjectID}", purchase_invoice, RequestList, Items, TotalPrice
+        )
 
     @staticmethod
     def EditTransitionDocument(RequestList):
@@ -1431,100 +2006,167 @@ class CheckValidation:
                 RequestList["RefreshToken"],
             )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Variable": "ProjectID"}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "ProjectID"}
 
-        if not isintstr(DestinationStoreID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        transition_document = Transition_Documents.objects.using(f"Project{ProjectID}").filter(Document_ID=DocumentID).first()
+        if not isintstr(DestinationStoreID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        transition_document = (
+            Transition_Documents.objects.using(f"Project{ProjectID}")
+            .filter(Document_ID=DocumentID)
+            .first()
+        )
         if transition_document is None:
             return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "DocumentID"}
-        destination_store = Stores_Table.objects.using(f"Project{ProjectID}").get(Store_ID=DestinationStoreID)
+        destination_store = Stores_Table.objects.using(f"Project{ProjectID}").get(
+            Store_ID=DestinationStoreID
+        )
         if destination_store is None:
-            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "DestinationStoreID"}
+            return {
+                "StatusCode": ErrorCodes.ValueNotFound,
+                "Variable": "DestinationStoreID",
+            }
         Items = getTransitionItems(f"Project{ProjectID}", RequestList)
         if isinstance(Items, dict):
             return Items
         if len(Items) == 0:
             return {"StatusCode": ErrorCodes.MissingVariables, "Variable": "Products"}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Transition")):
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Transition"):
             return error
-        return ProcessRequest.EditTransitionDocument(f"Project{ProjectID}", transition_document, destination_store, Items)
+        return ProcessRequest.EditTransitionDocument(
+            f"Project{ProjectID}", transition_document, destination_store, Items
+        )
 
     @staticmethod
     def DeletePurchaseInvoice(RequestList):
         try:
             ProjectID, InvoiceID = RequestList["ProjectID"], RequestList["InvoiceID"]
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(InvoiceID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        purchase_invoice = Purchase_Invoices.objects.using(f"Project{ProjectID}").filter(Invoice_ID=InvoiceID).first()
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(InvoiceID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        purchase_invoice = (
+            Purchase_Invoices.objects.using(f"Project{ProjectID}")
+            .filter(Invoice_ID=InvoiceID)
+            .first()
+        )
         if purchase_invoice is None:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"InvoiceID"}
-        return ProcessRequest.DeletePurchaseInvoice(f"Project{ProjectID}", purchase_invoice)
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "InvoiceID"}
+        return ProcessRequest.DeletePurchaseInvoice(
+            f"Project{ProjectID}", purchase_invoice
+        )
 
     @staticmethod
     def DeleteSellingInvoice(RequestList):
         try:
             ProjectID, InvoiceID = RequestList["ProjectID"], RequestList["InvoiceID"]
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(InvoiceID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        selling_invoice = Selling_Invoices.objects.using(f"Project{ProjectID}").filter(Invoice_ID=InvoiceID).first()
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(InvoiceID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        selling_invoice = (
+            Selling_Invoices.objects.using(f"Project{ProjectID}")
+            .filter(Invoice_ID=InvoiceID)
+            .first()
+        )
         if selling_invoice is None:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"InvoiceID"}
-        return ProcessRequest.DeleteSellingInvoice(f"Project{ProjectID}", selling_invoice)
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "InvoiceID"}
+        return ProcessRequest.DeleteSellingInvoice(
+            f"Project{ProjectID}", selling_invoice
+        )
 
     @staticmethod
     def DeleteTransitionDocument(RequestList):
         try:
-            ProjectID, DocumentID, RefreshToken = RequestList["ProjectID"], RequestList["DocumentID"], RequestList["RefreshToken"]
+            ProjectID, DocumentID, RefreshToken = (
+                RequestList["ProjectID"],
+                RequestList["DocumentID"],
+                RequestList["RefreshToken"],
+            )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(DocumentID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        transition_document = Transition_Documents.objects.using(f"Project{ProjectID}").filter(Document_ID=DocumentID).first()
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(DocumentID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        transition_document = (
+            Transition_Documents.objects.using(f"Project{ProjectID}")
+            .filter(Document_ID=DocumentID)
+            .first()
+        )
         if transition_document is None:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"DocumentID"}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Delete_Transition")):
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "DocumentID"}
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Delete_Transition"):
             return error
 
-        return ProcessRequest.DeleteTransitionDocument(f"Project{ProjectID}", transition_document)
+        return ProcessRequest.DeleteTransitionDocument(
+            f"Project{ProjectID}", transition_document
+        )
 
     @staticmethod
     def DeleteAdjustmentOperation(RequestList):
         try:
-            ProjectID, OperationID, RefreshToken = RequestList["ProjectID"], RequestList["OperationID"], RequestList["RefreshToken"]
+            ProjectID, OperationID, RefreshToken = (
+                RequestList["ProjectID"],
+                RequestList["OperationID"],
+                RequestList["RefreshToken"],
+            )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(OperationID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        adjustment_operation = Products_Quantities_Adjustments.objects.using(f"Project{ProjectID}").filter(Operation_ID=OperationID).first()
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(OperationID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        adjustment_operation = (
+            Products_Quantities_Adjustments.objects.using(f"Project{ProjectID}")
+            .filter(Operation_ID=OperationID)
+            .first()
+        )
         if adjustment_operation is None:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"OperationID"}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Delete_Adjustment")):
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "OperationID"}
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Delete_Adjustment"):
             return error
-        return ProcessRequest.DeleteAdjustmentOperation(f"Project{ProjectID}", adjustment_operation)
+        return ProcessRequest.DeleteAdjustmentOperation(
+            f"Project{ProjectID}", adjustment_operation
+        )
 
     @staticmethod
     def AddToAccount(RequestList):
         try:
             ProjectID, PersonID, Description, Amount = (
-                RequestList["ProjectID"], RequestList["PersonID"], RequestList["Description"], RequestList["Amount"])
+                RequestList["ProjectID"],
+                RequestList["PersonID"],
+                RequestList["Description"],
+                RequestList["Amount"],
+            )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if ProjectID not in ProjectsDBsConnectors.keys(): return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(PersonID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if ProjectID not in ProjectsDBsConnectors.keys():
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(PersonID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
 
-        if not isintstr(Amount): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if PersonID<0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
-        if len(Description)==0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
-        if Amount<=0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
+        if not isintstr(Amount):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if PersonID < 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
+        if len(Description) == 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
+        if Amount <= 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
         global Cursor
         global ProjectDBConnector
         ProjectDBConnector = ProjectsDBsConnectors[ProjectID]
@@ -1535,15 +2177,24 @@ class CheckValidation:
     def DeductFromAccount(RequestList):
         try:
             ProjectID, PersonID, Description, Amount = (
-                RequestList["ProjectID"], RequestList["PersonID"], RequestList["Description"], RequestList["Amount"])
+                RequestList["ProjectID"],
+                RequestList["PersonID"],
+                RequestList["Description"],
+                RequestList["Amount"],
+            )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if ProjectID not in ProjectsDBsConnectors.keys(): return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(PersonID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if ProjectID not in ProjectsDBsConnectors.keys():
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(PersonID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
 
-        if not isintstr(Amount): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if len(Description)==0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
-        if Amount <= 0: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
+        if not isintstr(Amount):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if len(Description) == 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
+        if Amount <= 0:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
         global Cursor
         global ProjectDBConnector
         ProjectDBConnector = ProjectsDBsConnectors[ProjectID]
@@ -1553,30 +2204,46 @@ class CheckValidation:
     @staticmethod
     def Transit(RequestList):
         try:
-            ProjectID, SourceStoreID, DestinationStoreID, RefreshToken = (RequestList["ProjectID"],
-                RequestList["SourceStoreID"], RequestList["DestinationStoreID"], RequestList["RefreshToken"])
+            ProjectID, SourceStoreID, DestinationStoreID, RefreshToken = (
+                RequestList["ProjectID"],
+                RequestList["SourceStoreID"],
+                RequestList["DestinationStoreID"],
+                RequestList["RefreshToken"],
+            )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Variable": "ProjectID"}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "ProjectID"}
         if SourceStoreID == DestinationStoreID:
-            return {"StatusCode": ErrorCodes.InvalidValue,"Variable": "StoresIDs"}
-        if not isintstr(SourceStoreID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if not isintstr(DestinationStoreID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "StoresIDs"}
+        if not isintstr(SourceStoreID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if not isintstr(DestinationStoreID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
 
-        source_store = Stores_Table.objects.using(f"Project{ProjectID}").get(Store_ID=SourceStoreID)
+        source_store = Stores_Table.objects.using(f"Project{ProjectID}").get(
+            Store_ID=SourceStoreID
+        )
         if source_store is None:
             return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "SourceStoreID"}
-        destination_store = Stores_Table.objects.using(f"Project{ProjectID}").get(Store_ID=DestinationStoreID)
+        destination_store = Stores_Table.objects.using(f"Project{ProjectID}").get(
+            Store_ID=DestinationStoreID
+        )
         if destination_store is None:
-            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "DestinationStoreID"}
+            return {
+                "StatusCode": ErrorCodes.ValueNotFound,
+                "Variable": "DestinationStoreID",
+            }
         Items = getTransitionItems(f"Project{ProjectID}", RequestList)
         if isinstance(Items, dict):
             return Items
         if len(Items) == 0:
             return {"StatusCode": ErrorCodes.MissingVariables, "Variable": "Products"}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Transition")):
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Transition"):
             return error
-        return ProcessRequest.Transit(f"Project{ProjectID}", Items, source_store, destination_store)
+        return ProcessRequest.Transit(
+            f"Project{ProjectID}", Items, source_store, destination_store
+        )
 
     @staticmethod
     def SearchProducts(RequestList):
@@ -1584,10 +2251,12 @@ class CheckValidation:
             ProjectID, StoreID = RequestList["ProjectID"], RequestList["StoreID"]
         except:
             return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
-        if not isintstr(ProjectID): return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "ProjectID"}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "ProjectID"}
         if ProjectsDBsConnectors.get(int(ProjectID)) is None:
             return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "ProjectID"}
-        if not isintstr(StoreID): return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "StoreID"}
+        if not isintstr(StoreID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "StoreID"}
         for Filter in RequestList.keys():
             match Filter:
                 case (
@@ -1597,14 +2266,27 @@ class CheckValidation:
                     | "Product_ID__Manufacture_Country"
                 ):
                     pass
-                case "Product_ID__Purchase_Price" | "Product_ID__Wholesale_Price" | "Product_ID__Retail_Price":
-                    if not isnumberstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-                case "Product_ID__Large_Quantity_Unit" | "Product_ID__Small_Quantity_Unit":
-                    if not isnumberstr(RequestList[Filter]): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+                case (
+                    "Product_ID__Purchase_Price"
+                    | "Product_ID__Wholesale_Price"
+                    | "Product_ID__Retail_Price"
+                ):
+                    if not isnumberstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+                case (
+                    "Product_ID__Large_Quantity_Unit"
+                    | "Product_ID__Small_Quantity_Unit"
+                ):
+                    if not isnumberstr(RequestList[Filter]):
+                        return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
                 case "RequestType" | "ProjectID" | "StoreID" | "RefreshToken":
                     pass
                 case _:
-                    return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Filter","Filter":Filter}
+                    return {
+                        "StatusCode": ErrorCodes.InvalidValue,
+                        "Variable": "Filter",
+                        "Filter": Filter,
+                    }
 
         return ProcessRequest.SearchProducts(f"Project{ProjectID}", RequestList)
 
@@ -1617,23 +2299,31 @@ class CheckValidation:
                 RequestList["StoreID"],
                 RequestList["FromDateTime"],
                 RequestList["ToDateTime"],
+                RequestList["RefreshToken"]
             )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
         try:
-            datetime.strptime(FromDateTime,"%Y-%m-%dT%H:%M:%S")
+            datetime.strptime(FromDateTime, "%Y-%m-%dT%H:%M:%S")
         except:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"FromDateTime"}
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "FromDateTime"}
         try:
-            datetime.strptime(ToDateTime,"%Y-%m-%dT%H:%M:%S")
+            datetime.strptime(ToDateTime, "%Y-%m-%dT%H:%M:%S")
         except:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"ToDateTime"}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(StoreID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        store_exists = Stores_Table.objects.using(f"Project{ProjectID}").filter(Store_ID=StoreID).exists()
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "ToDateTime"}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(StoreID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        store_exists = (
+            Stores_Table.objects.using(f"Project{ProjectID}")
+            .filter(Store_ID=StoreID)
+            .exists()
+        )
         if not store_exists:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "StoreID"}
         match InvoiceType:
             case "Selling":
                 if error := checkPermissions(
@@ -1642,13 +2332,15 @@ class CheckValidation:
                     return error
                 Error = SearchFiltersValidation.SellingInvoices(RequestList)
             case "Purchase":
-                if (error := checkPermissions(RefreshToken, ProjectID, "Can_View_Purchase")):
+                if error := checkPermissions(
+                    RefreshToken, ProjectID, "Can_View_Purchase"
+                ):
                     return error
                 Error = SearchFiltersValidation.PurchaseInvoices(RequestList)
             case _:
-                return {"StatusCode":ErrorCodes.InvalidValue,"Variable":InvoiceType}
+                return {"StatusCode": ErrorCodes.InvalidValue, "Variable": InvoiceType}
         if Error:
-            return Error    
+            return Error
         return ProcessRequest.SearchInvoices(f"Project{ProjectID}", RequestList)
 
     @staticmethod
@@ -1662,22 +2354,29 @@ class CheckValidation:
                 RequestList["RefreshToken"],
             )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ProjectID"}
-        if not isintstr(StoreID): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"StoreID"}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "ProjectID"}
+        if not isintstr(StoreID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "StoreID"}
         try:
-            datetime.strptime(FromDateTime,"%Y-%m-%dT%H:%M:%S")
+            datetime.strptime(FromDateTime, "%Y-%m-%dT%H:%M:%S")
         except:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"FromDateTime"}
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "FromDateTime"}
         try:
-            datetime.strptime(ToDateTime,"%Y-%m-%dT%H:%M:%S")
+            datetime.strptime(ToDateTime, "%Y-%m-%dT%H:%M:%S")
         except:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"ToDateTime"}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        store_exists = Stores_Table.objects.using(f"Project{ProjectID}").filter(Store_ID=StoreID).exists()
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "ToDateTime"}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        store_exists = (
+            Stores_Table.objects.using(f"Project{ProjectID}")
+            .filter(Store_ID=StoreID)
+            .exists()
+        )
         if not store_exists:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_View_Transitions")):
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "StoreID"}
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_View_Transitions"):
             return error
         for Filter in RequestList.keys():
             match Filter:
@@ -1693,22 +2392,44 @@ class CheckValidation:
                             "StatusCode": ErrorCodes.InvalidDataType,
                             "Variable": Filter,
                         }
-                case "RequestType" | "InvoiceType" | "ProjectID" | "StoreID" | "FromDateTime" | "ToDateTime" | "RefreshToken":
+                case (
+                    "RequestType"
+                    | "InvoiceType"
+                    | "ProjectID"
+                    | "StoreID"
+                    | "FromDateTime"
+                    | "ToDateTime"
+                    | "RefreshToken"
+                ):
                     pass
                 case _:
-                    return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Filter","Filter":Filter}
-        return ProcessRequest.SearchTransitionDocuments(f"Project{ProjectID}", RequestList)
+                    return {
+                        "StatusCode": ErrorCodes.InvalidValue,
+                        "Variable": "Filter",
+                        "Filter": Filter,
+                    }
+        return ProcessRequest.SearchTransitionDocuments(
+            f"Project{ProjectID}", RequestList
+        )
 
     @staticmethod
     def GetInvoice(RequestList):
         try:
-            ProjectID, InvoiceType, InvoiceID = RequestList["ProjectID"], RequestList["InvoiceType"], RequestList["InvoiceID"]
+            ProjectID, InvoiceType, InvoiceID = (
+                RequestList["ProjectID"],
+                RequestList["InvoiceType"],
+                RequestList["InvoiceID"],
+            )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(InvoiceID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if not InvoiceType in ValidInvoiceTypes: return {"StatusCode":ErrorCodes.InvalidValue,"Data":""}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(InvoiceID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if not InvoiceType in ValidInvoiceTypes:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Data": ""}
         return ProcessRequest.GetInvoice(f"Project{ProjectID}", RequestList)
 
     @staticmethod
@@ -1716,10 +2437,13 @@ class CheckValidation:
         try:
             ProjectID, DocumentID = RequestList["ProjectID"], RequestList["DocumentID"]
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(DocumentID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(DocumentID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
         return ProcessRequest.GetTransitionDocument(f"Project{ProjectID}", RequestList)
 
     @staticmethod
@@ -1734,21 +2458,38 @@ class CheckValidation:
                 RequestList["RefreshToken"],
             )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
 
-        if not isintstr(StoreID): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"StoreID"}
-        if not isintstr(ProductID): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"ProductID"}
-        if not isnumberstr(Quantity): return {"StatusCode":ErrorCodes.InvalidDataType,"Variable":"Quantity"}
-        if OperationType not in ["MoreThanPurchaseInvoice", "LessThanPurchaseInvoice", "Damaged", "Fixed", "Lost", "Found"]:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"OperationType"}
-        store = Stores_Table.objects.using(f"Project{ProjectID}").filter(Store_ID=StoreID).first()
+        if not isintstr(StoreID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "StoreID"}
+        if not isintstr(ProductID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "ProductID"}
+        if not isnumberstr(Quantity):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "Quantity"}
+        if OperationType not in [
+            "MoreThanPurchaseInvoice",
+            "LessThanPurchaseInvoice",
+            "Damaged",
+            "Fixed",
+            "Lost",
+            "Found",
+        ]:
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "OperationType"}
+        store = (
+            Stores_Table.objects.using(f"Project{ProjectID}")
+            .filter(Store_ID=StoreID)
+            .first()
+        )
         if store is None:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
-        if (error := checkPermissions(RefreshToken, ProjectID, "Can_Adjust_Quantity")):
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "StoreID"}
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Adjust_Quantity"):
             return error
 
-        return ProcessRequest.AdjustProductQuantity(f"Project{ProjectID}", RequestList, store)
+        return ProcessRequest.AdjustProductQuantity(
+            f"Project{ProjectID}", RequestList, store
+        )
 
     @staticmethod
     def SearchAdjustmentOperations(RequestList):
@@ -1760,21 +2501,28 @@ class CheckValidation:
                 RequestList["ToDateTime"],
             )
         except:
-            return {"StatusCode":ErrorCodes.MissingVariables,"Data":""}
-        if not isintstr(ProjectID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
-        if ProjectsDBsConnectors.get(int(ProjectID)) is None: return {"StatusCode":ErrorCodes.ValueNotFound,"Data":""}
-        if not isintstr(StoreID): return {"StatusCode":ErrorCodes.InvalidDataType,"Data":""}
+            return {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}
+        if not isintstr(ProjectID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Data": ""}
+        if not isintstr(StoreID):
+            return {"StatusCode": ErrorCodes.InvalidDataType, "Data": ""}
         try:
-            datetime.strptime(FromDateTime,"%Y-%m-%dT%H:%M:%S")
+            datetime.strptime(FromDateTime, "%Y-%m-%dT%H:%M:%S")
         except:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"FromDateTime"}
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "FromDateTime"}
         try:
-            datetime.strptime(ToDateTime,"%Y-%m-%dT%H:%M:%S")
+            datetime.strptime(ToDateTime, "%Y-%m-%dT%H:%M:%S")
         except:
-            return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"ToDateTime"}
-        store_exists = Stores_Table.objects.using(f"Project{ProjectID}").filter(Store_ID=StoreID).exists()
+            return {"StatusCode": ErrorCodes.InvalidValue, "Variable": "ToDateTime"}
+        store_exists = (
+            Stores_Table.objects.using(f"Project{ProjectID}")
+            .filter(Store_ID=StoreID)
+            .exists()
+        )
         if not store_exists:
-            return {"StatusCode":ErrorCodes.ValueNotFound,"Variable":"StoreID"}
+            return {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "StoreID"}
         for Filter in RequestList.keys():
             match Filter:
                 case "Quantity" | "Operation_ID" | "Product_ID":
@@ -1798,8 +2546,350 @@ class CheckValidation:
                 ):
                     pass
                 case _:
-                    return {"StatusCode":ErrorCodes.InvalidValue,"Variable":"Filter","Filter":Filter}
-        return ProcessRequest.SearchAdjustmentOperations(f"Project{ProjectID}", RequestList)
+                    return {
+                        "StatusCode": ErrorCodes.InvalidValue,
+                        "Variable": "Filter",
+                        "Filter": Filter,
+                    }
+        return ProcessRequest.SearchAdjustmentOperations(
+            f"Project{ProjectID}", RequestList
+        )
+
+
+class ProjectDebtAccounts(APIView):
+    def get(self, request, ProjectID):
+        try:
+            RefreshToken = request.GET["RefreshToken"]
+        except:
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}, status=400
+            )
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "ProjectID"},
+                status=404
+            )
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_View_Dect_Accounts"):
+            return error
+        Filters = request.GET.dict()
+        Filters.pop("RefreshToken", None)
+        debt_accounts = (
+            Project_Debt_Accounts.objects.using(f"Project{ProjectID}")
+            .filter(**Filters)
+            .all()
+            .values()
+        )
+        return JsonResponse({"ProjectDebtAccounts": list(debt_accounts)}, status=200)
+
+    def post(self, request, ProjectID):
+        try:
+            PersonName, NationalID, PhoneNumber, DebtAmount, RefreshToken = (
+                request.POST["PersonName"],
+                request.POST["NationalID"],
+                request.POST["PhoneNumber"],
+                request.POST["DebtAmount"],
+                request.POST["RefreshToken"],
+            )
+        except:
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}, status=400
+            )
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "ProjectID"},
+                status=404,
+            )
+        if not isintstr(NationalID):
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "NationalID"},
+                status=400,
+            )
+        if not isnumberstr(DebtAmount):
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "DebtAmount"},
+                status=400,
+            )
+        if error := checkPermissions(
+            RefreshToken, ProjectID, "Can_Create_Debt_Account"
+        ):
+            return error
+        if NationalID:
+            debt_account = (
+                Project_Debt_Accounts.objects.using(f"Project{ProjectID}")
+                .filter(Q(Person_Name=PersonName) | Q(National_ID=NationalID))
+                .first()
+            )
+        else:
+            debt_account = (
+                Project_Debt_Accounts.objects.using(f"Project{ProjectID}")
+                .filter(Person_Name=PersonName)
+                .first()
+            )
+        if debt_account:
+            return JsonResponse(
+                {
+                    "StatusCode": ErrorCodes.RedundantValue,
+                    "Variable": "PersonName or NationalID",
+                },
+                status=400,
+            )
+        debt_account = Project_Debt_Accounts(
+            Person_Name=PersonName,
+            National_ID=NationalID,
+            Phone_Number=PhoneNumber,
+            Debt_Amount=Decimal(DebtAmount)
+        )
+        debt_account.save(using=f"Project{ProjectID}")
+        return HttpResponse(status=200)
+
+    def put(self, request):
+        try:
+            (
+                ProjectID,
+                PersonID,
+                PersonName,
+                NationalID,
+                PhoneNumber,
+                DebtAmount,
+                RefreshToken,
+            ) = (
+                request.PUT["ProjectID"],
+                request.PUT["PersonID"],
+                request.PUT["PersonName"],
+                request.PUT["NationalID"],
+                request.PUT["PhoneNumber"],
+                request.PUT["DebtAmount"],
+                request.PUT["RefreshToken"],
+            )
+        except:
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}, status=400
+            )
+        if not isintstr(ProjectID):
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "ProjectID"},
+                status=400,
+            )
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "ProjectID"},
+                status=404,
+            )
+        if not isintstr(PersonID):
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "PersonID"},
+                status=400,
+            )
+        if not isintstr(NationalID):
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "NationalID"},
+                status=400,
+            )
+        if not isnumberstr(DebtAmount):
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "DebtAmount"},
+                status=400,
+            )
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Debt_Account"):
+            return error
+        debt_account = (
+            Project_Debt_Accounts.objects.using(f"Project{ProjectID}")
+            .filter(Person_ID=PersonID)
+            .first()
+        )
+        if debt_account is None:
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "PersonID"},
+                status=404,
+            )
+        debt_account_operation = (
+            Debt_Accounts_Transactions.objects.using(f"Project{ProjectID}")
+            .filter(Debt_Account_ID=PersonID)
+            .first()
+        )
+        if debt_account_operation and DebtAmount:
+            return JsonResponse(
+                {
+                    "StatusCode": ErrorCodes.InvalidValue,
+                    "Variable": "DebtAmount",
+                    "Message": "Cannot edit debt amount if there are existing operations.",
+                },
+                status=400,
+            )
+        else:
+            debt_account.Debt_Amount = Decimal(DebtAmount)
+        debt_account.Person_Name = PersonName
+        debt_account.National_ID = NationalID
+        debt_account.Phone_Number = PhoneNumber
+        debt_account.Debt_Amount = DebtAmount
+        debt_account.save(using=f"Project{ProjectID}")
+        return HttpResponse(status=200)
+
+
+class DebtAccountTransactions(APIView):
+    def get(self, request, ProjectID, DebtAccountID):
+        try:
+            RefreshToken = request.GET["RefreshToken"]
+        except:
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}, status=400
+            )
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "ProjectID"},
+                status=404,
+            )
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_View_Debt_Account"):
+            return error
+        Filters = request.GET.dict()
+        Filters.pop("RefreshToken", None)
+        operations = (
+            Debt_Accounts_Transactions.objects.using(f"Project{ProjectID}")
+            .filter(Debt_Account_ID=DebtAccountID, **Filters)
+            .all()
+            .values()
+        )
+        return JsonResponse({"DebtAccountTransactions": list(operations)}, status=200)
+
+    def post(self, request, ProjectID, DebtAccountID):
+        try:
+            (
+                TransactionType,
+                RelatedDocumentID,
+                AddtionalDebt,
+                Paid,
+                Note,
+                RefreshToken,
+            ) = (
+                request.POST["TransactionType"],
+                request.POST["RelatedDocumentID"],
+                request.POST["AdditionalDebt"],
+                request.POST["Paid"],
+                request.POST["Note"],
+                request.POST["RefreshToken"],
+            )
+        except:
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.MissingVariables, "Data": ""}, status=400
+            )
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "ProjectID"},
+                status=404,
+            )
+        if not isnumberstr(AddtionalDebt):
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "AddtionalDebt"},
+                status=400,
+            )
+        if not isnumberstr(Paid):
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.InvalidDataType, "Variable": "Paid"},
+                status=400,
+            )
+        if RelatedDocumentID and not isintstr(RelatedDocumentID):
+            return JsonResponse(
+                {
+                    "StatusCode": ErrorCodes.InvalidDataType,
+                    "Variable": "RelatedDocumentID",
+                },
+                status=400,
+            )
+        if error := checkPermissions(
+            RefreshToken, ProjectID, "Can_Add_Debt_Operations"
+        ):
+            return error
+        debt_account = (
+            Project_Debt_Accounts.objects.using(f"Project{ProjectID}")
+            .filter(Person_ID=DebtAccountID)
+            .first()
+        )
+        if debt_account is None:
+            return JsonResponse(
+                {"StatusCode": ErrorCodes.ValueNotFound, "Variable": "DebtAccountID"},
+                status=404,
+            )
+        operation = Debt_Accounts_Transactions(
+            Debt_Account_ID=debt_account,
+            Transaction_Type=TransactionType,
+            RelatedDocumentID=RelatedDocumentID,
+            Additional_Debt=Decimal(AddtionalDebt),
+            Paid=Decimal(Paid),
+            Note=Note,
+        )
+        operation.save(using=f"Project{ProjectID}")
+        debt_account.Debt_Amount += Decimal(AddtionalDebt) - Decimal(Paid)
+        debt_account.save(using=f"Project{ProjectID}")
+        return HttpResponse(status=200)
+
+    def put(self, request, ProjectID, DebtAccountID, OperationID):
+        try:
+            (
+                TransactionType,
+                RelatedDocumentID,
+                AddtionalDebt,
+                Paid,
+                Note,
+                RefreshToken,
+            ) = (
+                request.POST["TransactionType"],
+                request.POST["RelatedDocumentID"],
+                request.POST["AdditionalDebt"],
+                request.POST["Paid"],
+                request.POST["Note"],
+                request.POST["RefreshToken"],
+            )
+        except:
+            return JsonResponse(
+                {"ErrorCode": ErrorCodes.MissingVariables, "Data": ""}, status=400
+            )
+        if ProjectsDBsConnectors.get(int(ProjectID)) is None:
+            return JsonResponse(
+                {"ErrorCode": ErrorCodes.ValueNotFound, "Variable": "ProjectID"},
+                status=404,
+            )
+        if not isnumberstr(AddtionalDebt):
+            return JsonResponse(
+                {"ErrorCode": ErrorCodes.InvalidDataType, "Variable": "AddtionalDebt"},
+                status=400,
+            )
+        if not isnumberstr(Paid):
+            return JsonResponse(
+                {"ErrorCode": ErrorCodes.InvalidDataType, "Variable": "Paid"},
+                status=400,
+            )
+        if RelatedDocumentID and not isintstr(RelatedDocumentID):
+            return JsonResponse(
+                {
+                    "ErrorCode": ErrorCodes.InvalidDataType,
+                    "Variable": "RelatedDocumentID",
+                },
+                status=400,
+            )
+        if error := checkPermissions(RefreshToken, ProjectID, "Can_Edit_Debt_Account"):
+            return error
+        debt_account = (
+            Project_Debt_Accounts.objects.using(f"Project{ProjectID}")
+            .filter(Person_ID=DebtAccountID)
+            .first()
+        )
+        if debt_account is None:
+            return JsonResponse(
+                {"ErrorCode": ErrorCodes.ValueNotFound, "Variable": "DebtAccountID"},
+                status=404,
+            )
+        operation = Debt_Accounts_Transactions(
+            Debt_Account_ID=debt_account,
+            Transaction_Type=TransactionType,
+            RelatedDocumentID=RelatedDocumentID,
+            Additional_Debt=Decimal(AddtionalDebt),
+            Paid=Decimal(Paid),
+            Note=Note,
+        )
+        operation.save(using=f"Project{ProjectID}")
+        debt_account.Debt_Amount += Decimal(AddtionalDebt) - Decimal(Paid)
+        debt_account.save(using=f"Project{ProjectID}")
+        return HttpResponse(status=200)
 
 
 def StartRequestProcessing(Request):
@@ -1811,7 +2901,7 @@ def StartRequestProcessing(Request):
     try:
         RequestType = RequestList["RequestType"]
     except:
-        return {"StatusCode": ErrorCodes.MissingVariables,"Variable":"RequestType"}
+        return {"StatusCode": ErrorCodes.MissingVariables, "Variable": "RequestType"}
     match RequestType:
         case "CreateProject":
             Response = CheckValidation.CreateProject(RequestList)
@@ -1870,5 +2960,8 @@ def StartRequestProcessing(Request):
         case "AdjustProductQuantity":
             Response = CheckValidation.AdjustProductQuantity(RequestList)
         case _:
-            Response = {"StatusCode": ErrorCodes.InvalidValue,"Variable": "RequestType"}
+            Response = {
+                "StatusCode": ErrorCodes.InvalidValue,
+                "Variable": "RequestType",
+            }
     return JsonResponse(Response)

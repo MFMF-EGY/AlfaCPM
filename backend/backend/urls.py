@@ -23,6 +23,8 @@ import AccountsAPI.views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('apis/v1.0/commercial/<int:ProjectID>/debt-accounts', CommercialAPI.views.ProjectDebtAccounts.as_view()),
+    path('apis/v1.0/commercial/<int:ProjectID>/debt-account-operations/<int:DebtAccountID>', CommercialAPI.views.DebtAccountTransactions.as_view()),
     path('apis/v1.0/commercial', CommercialAPI.views.StartRequestProcessing),
     path('apis/v1.0/auth/register', AuthAPI.views.register_user),
     path('apis/v1.0/auth/refresh', AuthAPI.views.validate_refresh_token),
