@@ -11,10 +11,9 @@ import ProductsTabContent from './ProductsTabContent.jsx';
 import SellingTabContent from './SellingTabContent.jsx';
 import PurchaseTabContent from './PurchaseTabContent.jsx';
 import TransitionTabContent from './TransitionTabContent.jsx';
-import DebtsAccountsTabContent from './DebtsAccountsTabContent.jsx';
+import DebtAccountsPageComponent from './Components/Pages/DebtAccountsPageComponent.jsx';
 import QuantityAdjustmentsTabContent from './QuantityAdjustmentsTabContent.jsx';
 import EmployeesPage from './Components/Pages/EmployeesPageComponent.jsx';
-import EmployeePermissionsForm from './Components/Pages/EmployeesPageComponent.jsx';
 import PathComponent from './Components/Header/PathComponent.jsx';
 
 const BASE_API_URL = window.location.protocol + '//' + window.location.hostname + ':8000/apis/v1.0';
@@ -66,7 +65,7 @@ function App() {
           <PathComponent />
         </header>
         <main>
-          <Tabs style={{height : '100%'}}>
+          <Tabs style={{height : 'stretch'}}>
             <Tab title="القائمة الرئيسية" closable={false} opened={true}>
               <MainPageComponent />
             </Tab>
@@ -83,7 +82,7 @@ function App() {
               <ProductsTabContent />
             </Tab>
             <Tab title="حسابات الديون" closable={true} keepOpen={ProjectID !== null && StoreID !== null}>
-              <DebtsAccountsTabContent />
+              <DebtAccountsPageComponent />
             </Tab>
             <Tab title="تعديلات الكميات" closable={true} keepOpen={ProjectID !== null && StoreID !== null}>
               <QuantityAdjustmentsTabContent />

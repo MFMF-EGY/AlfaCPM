@@ -65,42 +65,44 @@ export default function MainPageComponent({ openTab }) {
 
   if (!ProjectID){
     return (
-      <div>
+      <>
         <SectionHeader>
           <h3>المشروعات</h3>
         </SectionHeader>
-        {refreshToken && 
-          <>
-            {isLoading ? (
-              <p>Loading...</p>
-            ) : (
-              projects.map((project) => (
-                <Card className={styles.ProjectCard} key={project.Project_ID} onClick={() => {
-                  setOpenedForm("");
-                  setProjectID(project.Project_ID);
-                  setProjectInfo(project);
-                }}>
-                  <CardContent className={styles.ProjectCardContent}>    
-                    <h3>{project.Project_Name}</h3>
-                    <p>{project.Project_Description}</p>
-                  </CardContent>
-                </Card>
-              ))
-            )}
-            <Card className={styles.NewProjectCard} onClick={() => setOpenedForm("CreateProjectForm")}>
-              <CardContent className={styles.NewProjectCardContent}>
-                <img src={addIcon} alt="Add Project" className={styles.AddIcon}/>
-                <text>مشروع جديد</text>
-              </CardContent>
-            </Card>
-          </>
-        }
-        {openedForm === "CreateProjectForm" && <CreateProjectForm projectsChanged={projectsChanged} setProjectsChanged={setProjectsChanged} setOpenedForm={setOpenedForm}/>}
-      </div>
+        <div style={{overflowY: 'auto', height: '90%'}}>
+          {refreshToken && 
+            <>
+              {isLoading ? (
+                <p>Loading...</p>
+              ) : (
+                projects.map((project) => (
+                  <Card className={styles.ProjectCard} key={project.Project_ID} onClick={() => {
+                    setOpenedForm("");
+                    setProjectID(project.Project_ID);
+                    setProjectInfo(project);
+                  }}>
+                    <CardContent className={styles.ProjectCardContent}>    
+                      <h3>{project.Project_Name}</h3>
+                      <p>{project.Project_Description}</p>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
+              <Card className={styles.NewProjectCard} onClick={() => setOpenedForm("CreateProjectForm")}>
+                <CardContent className={styles.NewProjectCardContent}>
+                  <img src={addIcon} alt="Add Project" className={styles.AddIcon}/>
+                  <text>مشروع جديد</text>
+                </CardContent>
+              </Card>
+            </>
+          }
+          {openedForm === "CreateProjectForm" && <CreateProjectForm projectsChanged={projectsChanged} setProjectsChanged={setProjectsChanged} setOpenedForm={setOpenedForm}/>}
+        </div>
+      </>
     )
   } else if (ProjectID && !StoreID){
     return (
-      <div>
+      <div style={{overflowY: 'scroll', height: 'stretch'}}>
         <SectionHeader>
           <h3>المخازن</h3>
         </SectionHeader>
@@ -137,6 +139,15 @@ export default function MainPageComponent({ openTab }) {
           <CardContent className={styles.ProjectCardContent}>    
             <h3>الموظفين</h3>
             <p>إدارة بيانات الموظفين</p>
+          </CardContent>
+        </Card>
+        <SectionHeader>
+          <h3>الماليات</h3>
+        </SectionHeader>
+        <Card className={styles.ProjectCard} onClick={() => openTab(5)}>
+          <CardContent className={styles.ProjectCardContent}>    
+            <h3>حسابات الديون</h3>
+            <p>إدارة حسابات الديون</p>
           </CardContent>
         </Card>
         {openedForm === "CreateStoreForm" && <CreateStoreForm storesChanged={storesChanged} setStoresChanged={setStoresChanged} setOpenedForm={setOpenedForm}/>}

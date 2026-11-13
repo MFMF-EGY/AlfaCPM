@@ -35,7 +35,7 @@ const Tabs = ({ children, className, style }) => {
   );
 
   return (
-    <div className={className} style={{ display: "flex", flexDirection: "column", ...style }}>
+    <div className={className} style={{display: "flex", flexDirection: "column", ...style}}>
       <ul className="Tabs-bar">
         {tabs.map((tab, index) => (
           OpenedTabs[index] && (
@@ -61,22 +61,17 @@ const Tabs = ({ children, className, style }) => {
           )
         ))}
       </ul>
-      <div className="Tab-content">
-        {tabs.map((tab, index) => (
-          OpenedTabs[index] && (
-            <div
-              key={index}
-              style={{
-                width: "100%",
-                height: "100%",
-                display: index === activeTab ? "block" : "none"
-              }}
-            >
-              {tab}
-            </div>
-          )
-        ))}
-      </div>
+      {tabs.map((tab, index) => (
+        OpenedTabs[index] && (
+          <div
+            className="Tab-content"
+            key={index}
+            style={{display: index === activeTab ? "block" : "none"}}
+          >
+            {tab}
+          </div>
+        )
+      ))}
     </div>
   );
 };
